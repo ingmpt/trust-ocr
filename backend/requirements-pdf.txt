@@ -1,0 +1,5 @@
+# Generación de PDF real para reportes ARCO (WeasyPrint). En Windows requiere
+# las librerías nativas de GTK3 instaladas aparte de pip; instalar sólo si se
+# va a habilitar la generación de PDF con estilos avanzados.
+# pip install -r requirements-pdf.txt
+weasyprint==62.3

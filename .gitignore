@@ -1,0 +1,28 @@
+# Entornos virtuales y dependencias
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Variables de entorno (nunca commitear secretos reales)
+.env
+backend/.env
+
+# Bases de datos y volúmenes locales
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# Artefactos de build
+dist/
+build/
+*.egg-info/
+
+# Node / Frontend (futuro)
+node_modules/
+frontend/dist/
+
+# Logs
+*.log

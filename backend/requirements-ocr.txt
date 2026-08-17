@@ -1,0 +1,5 @@
+# Motor OCR real (PaddleOCR, decisión final del sponsor). Dependencia pesada
+# (modelos de ML); instalar sólo cuando se vaya a usar OCR_ENGINE=paddleocr.
+# pip install -r requirements-ocr.txt
+paddleocr==2.8.1
+paddlepaddle==2.6.2

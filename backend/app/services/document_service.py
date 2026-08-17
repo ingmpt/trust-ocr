@@ -189,6 +189,7 @@ class DocumentService:
             "processing_mode": document.processing_mode,
             "document_type": document.document_type,
             "extracted_fields": fields,
+            "used_template": document.document_type == "plantilla",
             "error_message": document.error_message,
             "created_at": document.created_at,
             "completed_at": document.completed_at,

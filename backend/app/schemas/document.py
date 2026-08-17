@@ -24,6 +24,7 @@ class DocumentResultRead(BaseModel):
     processing_mode: str
     document_type: str | None
     extracted_fields: dict[str, ExtractedField] | None
+    used_template: bool
     error_message: str | None
     created_at: datetime
     completed_at: datetime | None

@@ -44,6 +44,7 @@ export interface DocumentResultRead {
   processing_mode: string;
   document_type: string | null;
   extracted_fields: Record<string, ExtractedField> | null;
+  used_template: boolean;
   error_message: string | null;
   created_at: string;
   completed_at: string | null;

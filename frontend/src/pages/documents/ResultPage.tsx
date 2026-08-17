@@ -130,7 +130,7 @@ export function ResultPage() {
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
             <button type="button" onClick={handleDownloadJson}>Descargar JSON</button>
-            {!showTemplateEditor && !templateSuccess && (
+            {!result.used_template && !showTemplateEditor && !templateSuccess && (
               <button type="button" onClick={handleStartSaveAsTemplate} style={{ background: "#1e7e34" }}>
                 Guardar como Plantilla
               </button>

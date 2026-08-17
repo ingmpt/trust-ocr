@@ -3,6 +3,7 @@ from app.models.billing import Invoice, PaymentMethod
 from app.models.compliance import ArcoRequest, AuditLog
 from app.models.document import Document, ExtractionResult
 from app.models.subscription import CreditTransaction, Plan, Subscription
+from app.models.template import DocumentTemplate
 from app.models.user import ApiKey, User
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "Invoice",
     "ArcoRequest",
     "AuditLog",
+    "DocumentTemplate",
 ]

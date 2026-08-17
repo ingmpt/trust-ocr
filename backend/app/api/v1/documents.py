@@ -26,9 +26,11 @@ def upload_document(
     user: CurrentUserAny,
     file: UploadFile = File(...),
     processing_mode: str = Form("express"),
+    template_id: str = Form(""),
 ):
     service = DocumentService(db)
-    document = service.upload_single(user, file, processing_mode)
+    tid = uuid.UUID(template_id) if template_id else None
+    document = service.upload_single(user, file, processing_mode, template_id=tid)
     return DocumentUploadResponse(
         id=document.id,
         status=document.status,

@@ -11,6 +11,8 @@ import { PaymentMethodsPage } from "./pages/billing/PaymentMethodsPage";
 import { InvoicesPage } from "./pages/billing/InvoicesPage";
 import { ProfilePage } from "./pages/account/ProfilePage";
 import { ApiKeysPage } from "./pages/account/ApiKeysPage";
+import { TemplatesListPage } from "./pages/templates/TemplatesListPage";
+import { TemplateCreatePage } from "./pages/templates/TemplateCreatePage";
 import { ArcoIdentityPage } from "./pages/arco/ArcoIdentityPage";
 import { ArcoRightSelectorPage } from "./pages/arco/ArcoRightSelectorPage";
 import { ArcoAccessPage } from "./pages/arco/ArcoAccessPage";
@@ -35,6 +37,8 @@ function App() {
         <Route path="/billing/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
         <Route path="/account/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/account/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
+        <Route path="/templates" element={<ProtectedRoute><TemplatesListPage /></ProtectedRoute>} />
+        <Route path="/templates/new" element={<ProtectedRoute><TemplateCreatePage /></ProtectedRoute>} />
 
         {/* Portal ARCO: público, sin autenticación de sesión (HU 3.2) */}
         <Route path="/arco/identificacion" element={<ArcoIdentityPage />} />

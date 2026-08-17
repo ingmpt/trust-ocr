@@ -1,7 +1,8 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadBatch, uploadDocument } from "../../api/documents";
 import { extractErrorMessage } from "../../api/client";
+import { listTemplates, type TemplateRead } from "../../api/templates";
 import { Alert } from "../../components/Alert";
 
 const SUPPORTED_TYPES = [".jpg", ".jpeg", ".png", ".pdf", ".zip"];
@@ -11,8 +12,14 @@ export function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processingMode, setProcessingMode] = useState<"express" | "almacenado">("express");
+  const [templates, setTemplates] = useState<TemplateRead[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listTemplates().then(setTemplates).catch(() => {});
+  }, []);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   function validateAndSetFile(file: File) {
@@ -44,7 +51,7 @@ export function UploadPage() {
         setStatusMessage(`Lote procesado: ${result.total_documents} documento(s).`);
         if (result.document_ids[0]) navigate(`/documents/${result.document_ids[0]}`);
       } else {
-        const result = await uploadDocument(selectedFile, processingMode);
+        const result = await uploadDocument(selectedFile, processingMode, selectedTemplateId || undefined);
         navigate(`/documents/${result.id}`);
       }
     } catch (err) {
@@ -82,6 +89,21 @@ export function UploadPage() {
           eliminan físicamente.
         </label>
       </section>
+
+      {templates.length > 0 && (
+        <section className="card">
+          <h2>Plantilla de Extracción (opcional)</h2>
+          <p className="proration-note">Selecciona una plantilla para extraer campos específicos. Si no seleccionas ninguna, el sistema detectará el tipo de documento automáticamente.</p>
+          <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)} style={{ marginTop: "0.5rem" }}>
+            <option value="">Detección automática</option>
+            {templates.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.name} ({tpl.field_definitions.length} campos){tpl.user_id === null ? " — Global" : ""}
+              </option>
+            ))}
+          </select>
+        </section>
+      )}
 
       <section
         className="dropzone"

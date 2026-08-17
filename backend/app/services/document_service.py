@@ -21,8 +21,10 @@ from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.services.credit_service import CreditService
 from app.services.notification_service import NotificationService
+from app.services.ocr.pdf_rasterizer import is_pdf
 from app.services.ocr.pipeline import run_extraction_pipeline
 from app.services.storage_service import StorageService
+from app.services.template_service import TemplateService
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
 EXPRESS_TARGET_SECONDS = 1.5
@@ -45,15 +47,34 @@ class DocumentService:
                 f"Formato de archivo no soportado: {suffix or 'desconocido'}. Formatos válidos: JPEG, PNG, PDF, ZIP.",
             )
 
-    def upload_single(self, user: User, file: UploadFile, processing_mode: str) -> Document:
+    def _count_pages(self, content: bytes) -> int:
+        """1 crédito de página = 1 imagen o 1 hoja de PDF (HU 2.1)."""
+        if not is_pdf(content):
+            return 1
+        import fitz
+
+        with fitz.open(stream=content, filetype="pdf") as document:
+            return max(document.page_count, 1)
+
+    def upload_single(self, user: User, file: UploadFile, processing_mode: str, template_id: uuid.UUID | None = None) -> Document:
         self._validate_extension(file.filename)
         content = file.file.read()
-        page_count = 1  # simplificación MVP: 1 crédito por imagen/PDF de una hoja (HU 2.1)
+        page_count = self._count_pages(content)
 
         subscription = self.credits.get_active_subscription(user)
         self.credits.reserve_pages(subscription, page_count)
         if self.credits.is_near_limit(subscription):
             self.notifications.send_usage_warning(user.email, self.credits.usage_percent(subscription))
+
+        template_fields = None
+        if template_id:
+            template = TemplateService(self.db).get_template(user, template_id)
+            template_fields = template.field_definitions
+        else:
+            svc = TemplateService(self.db)
+            matched, auto_fields = svc.auto_classify_and_extract(user, self._quick_ocr(content))
+            if matched:
+                template_fields = matched.field_definitions
 
         document = Document(
             user_id=user.id,
@@ -65,8 +86,12 @@ class DocumentService:
         self.documents.create(document)
         self.db.commit()
 
-        self._process_document(document, content)
+        self._process_document(document, content, template_fields)
         return document
+
+    def _quick_ocr(self, content: bytes) -> str:
+        from app.services.ocr.pipeline import run_ocr
+        return run_ocr(content)
 
     def upload_batch(self, user: User, zip_file: UploadFile, processing_mode: str) -> list[Document]:
         content = zip_file.file.read()
@@ -80,14 +105,15 @@ class DocumentService:
                     continue
 
                 subscription = self.credits.get_active_subscription(user)
-                self.credits.reserve_pages(subscription, 1)
+                page_count = self._count_pages(archive.read(name))
+                self.credits.reserve_pages(subscription, page_count)
 
                 document = Document(
                     user_id=user.id,
                     original_filename=name,
                     processing_mode=processing_mode,
                     status=DocumentStatus.PROCESSING.value,
-                    page_count=1,
+                    page_count=page_count,
                 )
                 self.documents.create(document)
                 self.db.commit()
@@ -100,10 +126,10 @@ class DocumentService:
 
         return documents
 
-    def _process_document(self, document: Document, content: bytes) -> None:
+    def _process_document(self, document: Document, content: bytes, template_fields: list[dict] | None = None) -> None:
         started_at = time.monotonic()
         try:
-            result = run_extraction_pipeline(content)
+            result = run_extraction_pipeline(content, template_fields=template_fields)
         except Exception as exc:  # noqa: BLE001 — se persiste el error, no se re-lanza (HU 1.3)
             document.status = DocumentStatus.FAILED.value
             document.error_message = str(exc)

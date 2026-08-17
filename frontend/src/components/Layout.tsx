@@ -26,6 +26,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <Link to="/billing/payment-methods">Métodos de Pago</Link>
             <Link to="/account/profile">Mi Cuenta</Link>
             <Link to="/account/api-keys">Claves API</Link>
+            <Link to="/templates">Plantillas</Link>
           </nav>
           <div className="navbar-user">
             <span>{user.email}</span>

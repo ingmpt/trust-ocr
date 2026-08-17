@@ -85,16 +85,42 @@ class ArcoService:
         return storage_key
 
     def request_rectification(self, validation_token: str, fields_to_rectify: dict[str, str], reason: str) -> ArcoRequest:
+        """Corrige campos mal leídos por el OCR mediante UPDATE directo sobre el
+        registro almacenado (HU 3.2), p. ej. un apellido mal reconocido."""
         request = self._get_pending_request_by_token(validation_token)
         request.right_type = ArcoRightType.RECTIFICACION.value
         request.details = {"fields_to_rectify": fields_to_rectify, "reason": reason}
-        request.status = ArcoRequestStatus.EN_PROCESO.value
+
+        updated_count = self._apply_rectification(request.dni, fields_to_rectify)
+        request.details["documents_updated"] = updated_count
+        request.status = ArcoRequestStatus.COMPLETADA.value
         self.arco_requests.save(request)
         self.db.commit()
 
         self.audit.record("arco_rectification_requested", actor=request.dni, target_type="arco_request", target_id=str(request.id), payload=request.details)
         self.notifications.send_arco_confirmation(None, "Rectificación", validation_token)
         return request
+
+    def _apply_rectification(self, dni: str, fields_to_rectify: dict[str, str]) -> int:
+        documents = self._find_documents_by_dni(dni)
+        for document in documents:
+            result = document.extraction_result
+            if result is None:
+                continue
+            updated_fields = dict(result.extracted_fields)
+            for field_name, new_value in fields_to_rectify.items():
+                current = updated_fields.get(field_name, {})
+                updated_fields[field_name] = {"value": new_value, "confidence": 100.0}
+                _ = current  # se sobrescribe el valor y la confianza pasa a 100% (corrección manual verificada)
+            result.extracted_fields = updated_fields
+            self.db.add(result)
+            self.audit.record("data_rectification", actor="system", target_type="document", target_id=str(document.id), payload={"fields": list(fields_to_rectify)})
+        return len(documents)
+
+    def _find_documents_by_dni(self, dni: str) -> list[Document]:
+        return list(
+            self.db.scalars(select(Document).where(Document.extraction_result.has(ExtractionResult.extracted_fields.op("->>")("numero_dni") == dni)))
+        )
 
     def request_cancellation(self, validation_token: str, reason: str | None, confirm: bool) -> ArcoRequest:
         if not confirm:
@@ -119,9 +145,7 @@ class ArcoService:
 
     def _destroy_personal_data(self, dni: str) -> int:
         """Destrucción física inmediata, anulando cualquier período de retención restante (HU 3.2)."""
-        documents = list(
-            self.db.scalars(select(Document).where(Document.extraction_result.has(ExtractionResult.extracted_fields.op("->>")("numero_dni") == dni)))
-        )
+        documents = self._find_documents_by_dni(dni)
         for document in documents:
             if document.storage_key:
                 self.storage.delete_object(document.storage_key)

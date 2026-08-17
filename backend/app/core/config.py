@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # LLM
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash-8b"
+    gemini_model: str = "gemini-3.5-flash-lite"
 
     # Almacenamiento (Cloudflare R2)
     r2_account_id: str = ""

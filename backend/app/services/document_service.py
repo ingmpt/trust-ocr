@@ -66,13 +66,17 @@ class DocumentService:
         if self.credits.is_near_limit(subscription):
             self.notifications.send_usage_warning(user.email, self.credits.usage_percent(subscription))
 
+        # OCR se ejecuta UNA sola vez; el texto se reutiliza en clasificación y extracción.
+        from app.services.ocr.pipeline import run_ocr
+        ocr_text = run_ocr(content)
+
         template_fields = None
         if template_id:
             template = TemplateService(self.db).get_template(user, template_id)
             template_fields = template.field_definitions
         else:
             svc = TemplateService(self.db)
-            matched, auto_fields = svc.auto_classify_and_extract(user, self._quick_ocr(content))
+            matched, _ = svc.auto_classify_and_extract(user, ocr_text)
             if matched:
                 template_fields = matched.field_definitions
 
@@ -86,12 +90,8 @@ class DocumentService:
         self.documents.create(document)
         self.db.commit()
 
-        self._process_document(document, content, template_fields)
+        self._process_document(document, content, template_fields, ocr_text)
         return document
-
-    def _quick_ocr(self, content: bytes) -> str:
-        from app.services.ocr.pipeline import run_ocr
-        return run_ocr(content)
 
     def upload_batch(self, user: User, zip_file: UploadFile, processing_mode: str) -> list[Document]:
         content = zip_file.file.read()
@@ -126,10 +126,10 @@ class DocumentService:
 
         return documents
 
-    def _process_document(self, document: Document, content: bytes, template_fields: list[dict] | None = None) -> None:
+    def _process_document(self, document: Document, content: bytes, template_fields: list[dict] | None = None, ocr_text: str | None = None) -> None:
         started_at = time.monotonic()
         try:
-            result = run_extraction_pipeline(content, template_fields=template_fields)
+            result = run_extraction_pipeline(content, template_fields=template_fields, ocr_text=ocr_text)
         except Exception as exc:  # noqa: BLE001 — se persiste el error, no se re-lanza (HU 1.3)
             document.status = DocumentStatus.FAILED.value
             document.error_message = str(exc)

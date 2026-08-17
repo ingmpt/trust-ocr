@@ -8,8 +8,7 @@ Soporta dos modos:
 """
 from app.services.ocr.engine import get_ocr_engine
 from app.services.ocr.extraction_rules import apply_extraction_rules, classify_document
-from app.services.ocr.llm_correction import get_llm_corrector
-from app.services.ocr.llm_extraction import extract_template_fields
+from app.services.ocr.llm_extraction import extract_all_fields, extract_template_fields
 from app.services.ocr.pdf_rasterizer import is_pdf, render_pdf_to_images
 from app.services.ocr.preprocessing import preprocess_image
 
@@ -33,18 +32,24 @@ def run_ocr(file_bytes: bytes) -> str:
     return "\n".join(raw_text_parts)
 
 
-def run_extraction_pipeline(file_bytes: bytes, template_fields: list[dict] | None = None) -> ExtractionPipelineResult:
-    raw_text = run_ocr(file_bytes)
+def run_extraction_pipeline(file_bytes: bytes, template_fields: list[dict] | None = None, ocr_text: str | None = None) -> ExtractionPipelineResult:
+    """Pipeline optimizado: acepta texto OCR pre-computado para evitar ejecutar OCR dos veces."""
+    if ocr_text is None:
+        ocr_text = run_ocr(file_bytes)
 
     if template_fields:
-        extracted = extract_template_fields(raw_text, template_fields)
-        return ExtractionPipelineResult(document_type="plantilla", fields=extracted, raw_text=raw_text)
+        extracted = extract_template_fields(ocr_text, template_fields)
+        return ExtractionPipelineResult(document_type="plantilla", fields=extracted, raw_text=ocr_text)
 
-    document_type = classify_document(raw_text)
-    rule_based_fields = apply_extraction_rules(document_type, raw_text)
+    # Flujo sin plantilla: intentar reglas SUNAT primero (gratis, rápido)
+    document_type = classify_document(ocr_text)
+    rule_based_fields = apply_extraction_rules(document_type, ocr_text)
 
-    llm_corrector = get_llm_corrector()
-    final_fields = llm_corrector.correct(raw_text, rule_based_fields)
+    if rule_based_fields:
+        return ExtractionPipelineResult(document_type=document_type, fields=rule_based_fields, raw_text=ocr_text)
 
-    return ExtractionPipelineResult(document_type=document_type, fields=final_fields, raw_text=raw_text)
+    # Fallback: extracción genérica vía LLM (detecta todos los campos posibles)
+    all_fields = extract_all_fields(ocr_text)
+    generic_fields = {f["name"]: {"value": f.get("value"), "confidence": f.get("confidence", 0)} for f in all_fields if f.get("name")}
+    return ExtractionPipelineResult(document_type=document_type or "desconocido", fields=generic_fields, raw_text=ocr_text)
 

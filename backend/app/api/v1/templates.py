@@ -57,3 +57,11 @@ def preview_extraction(user: CurrentUserAny, db: DbSession, file: UploadFile = F
         )
         for f in raw_fields
     ]
+
+
+@router.post("/from-result", response_model=TemplateRead, status_code=status.HTTP_201_CREATED)
+def create_template_from_result(payload: TemplateCreate, user: CurrentUserAny, db: DbSession):
+    """Crea una plantilla a partir de los campos de un resultado de extracción ya procesado."""
+    return TemplateService(db).create_template(
+        user, payload.name, payload.description, [f.model_dump() for f in payload.field_definitions]
+    )

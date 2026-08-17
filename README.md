@@ -6,9 +6,9 @@ Este README se mantiene actualizado con el detalle funcional y técnico del proy
 
 ## Estado actual
 
-**Backend (API) construido y probado localmente.** Frontend aún no iniciado (se construye después de validar la API, según el orden de trabajo "down-up").
+**Backend (API) y Frontend construidos y probados localmente.** Ambos siguiendo el orden de trabajo "down-up": el frontend (React + Vite + TypeScript) se construyó al final, consumiendo la API ya funcional.
 
-Épicas del Backlog cubiertas por el backend actual:
+Épicas del Backlog cubiertas:
 
 | Épica | Cobertura |
 |---|---|
@@ -44,6 +44,12 @@ Mientras no se instalen, la aplicación funciona igual usando los adaptadores de
 ## Estructura del proyecto
 
 ```
+frontend/
+  src/
+    api/         # clientes tipados por dominio (auth, plans, documents, billing, arco)
+    context/     # AuthContext (sesión JWT)
+    components/  # Layout, ProtectedRoute, Alert
+    pages/       # una carpeta por grupo de pantallas (auth, documents, plans, billing, account, arco)
 backend/
   app/
     core/        # configuración, DB, Redis, seguridad (JWT, hashing, API keys)
@@ -101,9 +107,22 @@ Revisar `.env` y completar credenciales reales sólo cuando se vayan a probar in
 
 Al iniciar, la app siembra automáticamente el catálogo de planes (Freemium, Básico, Crecimiento, Corporativo) con los precios y cuotas del Backlog.
 
+### 6. Frontend
+
+```powershell
+cd frontend
+npm install
+Copy-Item .env.example .env
+npm run dev
+```
+
+- La app queda disponible en `http://localhost:5173` (Vite elige el siguiente puerto libre si está ocupado, p. ej. `5174`).
+- Si Vite usa un puerto distinto a 5173, actualizar `FRONTEND_ORIGIN` en `backend/.env` para que el CORS del backend lo acepte, y reiniciar la API.
+- El Portal ARCO es público: accesible desde `/arco/identificacion` sin iniciar sesión (enlace visible en la pantalla de Login).
+
 ## Resultado de pruebas locales (smoke test manual)
 
-Verificado manualmente contra la API en ejecución:
+Verificado manualmente contra la API y el frontend en ejecución:
 
 - ✅ `POST /api/v1/auth/register` → asigna plan Freemium automáticamente.
 - ✅ `GET /api/v1/subscriptions/me` → refleja plan, cuota y consumo.
@@ -112,6 +131,7 @@ Verificado manualmente contra la API en ejecución:
 - ✅ `POST /api/v1/arco/identity/verify` → genera token de validación.
 - ✅ `POST /api/v1/arco/requests/access` → genera reporte PDF (fallback) y registra auditoría.
 - ✅ `POST /api/v1/payment-methods` → registra método de pago (sin tokenización real, Culqi no integrado en MVP).
+- ✅ Frontend: `npm run build` y `tsc -b --noEmit` sin errores; CORS verificado entre `localhost:5174` (frontend) y `localhost:8000` (backend); páginas cargan y consumen la API (Login, Registro, Dashboard, Carga de Documentos, Planes, ARCO).
 
 Pendiente de probar con credenciales reales (fuera del alcance de este smoke test): Gemini, Cloudflare R2, Zoho SMTP, PaddleOCR, WeasyPrint.
 
@@ -119,13 +139,14 @@ Pendiente de probar con credenciales reales (fuera del alcance de este smoke tes
 
 - El **Documento Técnico de Arquitectura** provisto está truncado (corta a mitad de frase en la descripción del Portal ARCO, sin llegar a las secciones de "Riesgos técnicos" ni "Decisiones pendientes"). Se construyó con base en las decisiones explícitas ya marcadas como "finales" en el documento, y en el Backlog/Lineamientos UX-UI, que sí están completos.
 - El **proveedor de firma externa del registro de auditoría** (blockchain/sello de tiempo) no está seleccionado en el documento técnico; se implementó la interfaz de extensión (`AUDIT_SIGNING_PROVIDER`) sin integrar un proveedor real, siguiendo el mismo patrón usado para Culqi/Nubefact (preparado, no integrado).
-- El **Portal ARCO** se implementó como frontend propio (no Formbricks), consistente con las pantallas específicas ya detalladas en Lineamientos UX-UI.
+- El **Portal ARCO** se implementó como frontend propio (confirmado con el sponsor), consistente con las pantallas específicas ya detalladas en Lineamientos UX-UI. La **Rectificación** aplica un `UPDATE` real sobre el campo almacenado (`ExtractionResult.extracted_fields`) asociado al DNI, y la **Cancelación** ejecuta destrucción física inmediata de archivos y filas asociadas — ambas acciones quedan registradas en el log de auditoría append-only.
 - 1 crédito de página = 1 imagen o 1 PDF de una hoja (HU 2.1). El MVP actual trata cada archivo cargado como 1 página; el conteo de páginas reales de PDFs multi-hoja queda como mejora posterior (ver Pendientes).
 
 ## Pendientes / limitaciones conocidas
 
-- Frontend (17 pantallas de Lineamientos UX-UI) no iniciado — siguiente fase, después de validar la API con el equipo.
+- Frontend cubre las pantallas principales de las 4 épicas (auth, dashboard, carga/resultados, planes, billing, cuenta, ARCO completo); pulido visual adicional y validación de accesibilidad con lectores de pantalla reales queda pendiente.
 - Conteo real de páginas en PDF multi-hoja (actualmente 1 archivo = 1 página).
 - Procesamiento por lote (ZIP) es síncrono en el request; migrar a cola Celery/Redis para lotes grandes con notificación asíncrona real.
 - La purga de documentos vencidos ya tiene tarea Celery Beat definida (`app/workers/tasks.py`, diaria a las 3am), pero requiere levantar `celery -A app.workers.celery_app worker` y `celery -A app.workers.celery_app beat` en un proceso separado (no está incluido en `docker-compose.yml` de este MVP).
 - Integración real de Culqi, Nubefact, Gemini, Cloudflare R2, Zoho SMTP, PaddleOCR y WeasyPrint pendiente de credenciales/decisión de proveedor.
+- Node.js no estaba instalado en el entorno; se instaló vía `winget install OpenJS.NodeJS.LTS` para poder construir el frontend.

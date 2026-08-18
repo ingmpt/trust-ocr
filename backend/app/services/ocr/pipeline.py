@@ -41,14 +41,8 @@ def run_extraction_pipeline(file_bytes: bytes, template_fields: list[dict] | Non
         extracted = extract_template_fields(ocr_text, template_fields)
         return ExtractionPipelineResult(document_type="plantilla", fields=extracted, raw_text=ocr_text)
 
-    # Flujo sin plantilla: intentar reglas SUNAT primero (gratis, rápido)
+    # Sin plantilla: extracción genérica vía LLM (detecta todos los campos relevantes)
     document_type = classify_document(ocr_text)
-    rule_based_fields = apply_extraction_rules(document_type, ocr_text)
-
-    if rule_based_fields:
-        return ExtractionPipelineResult(document_type=document_type, fields=rule_based_fields, raw_text=ocr_text)
-
-    # Fallback: extracción genérica vía LLM (detecta todos los campos posibles)
     all_fields = extract_all_fields(ocr_text)
     generic_fields = {f["name"]: {"value": f.get("value"), "confidence": f.get("confidence", 0)} for f in all_fields if f.get("name")}
     return ExtractionPipelineResult(document_type=document_type or "desconocido", fields=generic_fields, raw_text=ocr_text)

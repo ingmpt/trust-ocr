@@ -61,11 +61,15 @@ _GLOBAL_TEMPLATES = [
         "description": "Factura, boleta o guía de remisión electrónica.",
         "field_definitions": [
             {"name": "ruc_emisor", "label": "RUC Emisor"},
+            {"name": "razon_social_emisor", "label": "Razón Social / Proveedor"},
             {"name": "ruc_receptor", "label": "RUC Receptor"},
             {"name": "serie_correlativo", "label": "Serie-Correlativo"},
             {"name": "fecha_emision", "label": "Fecha de Emisión"},
-            {"name": "monto_total", "label": "Monto Total"},
+            {"name": "tipo_servicio", "label": "Tipo de Servicio o Producto"},
+            {"name": "descripcion_servicio", "label": "Descripción del Servicio"},
+            {"name": "subtotal", "label": "Subtotal"},
             {"name": "igv", "label": "IGV"},
+            {"name": "monto_total", "label": "Monto Total"},
         ],
     },
 ]

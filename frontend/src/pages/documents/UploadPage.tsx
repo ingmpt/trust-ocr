@@ -49,7 +49,7 @@ export function UploadPage() {
       if (isZip) {
         const result = await uploadBatch(selectedFile, processingMode, selectedTemplateId || undefined);
         setStatusMessage(`Lote procesado: ${result.total_documents} documento(s).`);
-        if (result.document_ids[0]) navigate(`/documents/${result.document_ids[0]}`);
+        navigate(`/documents/batch?ids=${result.document_ids.join(",")}`);
       } else {
         const result = await uploadDocument(selectedFile, processingMode, selectedTemplateId || undefined);
         navigate(`/documents/${result.id}`);

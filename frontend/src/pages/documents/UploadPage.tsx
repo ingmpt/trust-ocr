@@ -47,7 +47,7 @@ export function UploadPage() {
     try {
       const isZip = selectedFile.name.toLowerCase().endsWith(".zip");
       if (isZip) {
-        const result = await uploadBatch(selectedFile, processingMode);
+        const result = await uploadBatch(selectedFile, processingMode, selectedTemplateId || undefined);
         setStatusMessage(`Lote procesado: ${result.total_documents} documento(s).`);
         if (result.document_ids[0]) navigate(`/documents/${result.document_ids[0]}`);
       } else {

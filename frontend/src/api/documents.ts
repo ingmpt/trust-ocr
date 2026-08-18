@@ -12,10 +12,11 @@ export async function uploadDocument(file: File, processingMode: "express" | "al
   return data;
 }
 
-export async function uploadBatch(zipFile: File, processingMode: "express" | "almacenado") {
+export async function uploadBatch(zipFile: File, processingMode: "express" | "almacenado", templateId?: string) {
   const formData = new FormData();
   formData.append("file", zipFile);
   formData.append("processing_mode", processingMode);
+  if (templateId) formData.append("template_id", templateId);
   const { data } = await apiClient.post("/documents/batch", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });

@@ -93,9 +93,14 @@ class DocumentService:
         self._process_document(document, content, template_fields, ocr_text)
         return document
 
-    def upload_batch(self, user: User, zip_file: UploadFile, processing_mode: str) -> list[Document]:
+    def upload_batch(self, user: User, zip_file: UploadFile, processing_mode: str, template_id: uuid.UUID | None = None) -> list[Document]:
         content = zip_file.file.read()
         documents: list[Document] = []
+
+        # Si el usuario seleccionó plantilla, se aplica a todo el lote (atajo eficiente).
+        fixed_template_fields = None
+        if template_id:
+            fixed_template_fields = TemplateService(self.db).get_template(user, template_id).field_definitions
 
         with zipfile.ZipFile(BytesIO(content)) as archive:
             entries = [name for name in archive.namelist() if not name.endswith("/")]
@@ -104,9 +109,20 @@ class DocumentService:
                 if suffix not in SUPPORTED_EXTENSIONS:
                     continue
 
+                file_bytes = archive.read(name)
                 subscription = self.credits.get_active_subscription(user)
-                page_count = self._count_pages(archive.read(name))
+                page_count = self._count_pages(file_bytes)
                 self.credits.reserve_pages(subscription, page_count)
+
+                from app.services.ocr.pipeline import run_ocr
+                ocr_text = run_ocr(file_bytes)
+
+                template_fields = fixed_template_fields
+                if template_fields is None:
+                    svc = TemplateService(self.db)
+                    matched, _ = svc.auto_classify_and_extract(user, ocr_text)
+                    if matched:
+                        template_fields = matched.field_definitions
 
                 document = Document(
                     user_id=user.id,
@@ -118,7 +134,7 @@ class DocumentService:
                 self.documents.create(document)
                 self.db.commit()
 
-                self._process_document(document, archive.read(name))
+                self._process_document(document, file_bytes, template_fields, ocr_text)
                 documents.append(document)
 
         if self.credits.is_near_limit(self.credits.get_active_subscription(user)):

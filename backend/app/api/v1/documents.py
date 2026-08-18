@@ -46,9 +46,11 @@ def upload_batch(
     user: CurrentUserAny,
     file: UploadFile = File(...),
     processing_mode: str = Form("express"),
+    template_id: str = Form(""),
 ):
     service = DocumentService(db)
-    documents = service.upload_batch(user, file, processing_mode)
+    tid = uuid.UUID(template_id) if template_id else None
+    documents = service.upload_batch(user, file, processing_mode, template_id=tid)
     return BatchUploadResponse(
         batch_id=uuid.uuid4(),
         document_ids=[document.id for document in documents],

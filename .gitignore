@@ -8,6 +8,11 @@ __pycache__/
 .env
 backend/.env
 
+# Archivos con credenciales/tokens
+cloudflare_key.txt
+*.key
+*.pem
+
 # Bases de datos y volúmenes locales
 *.sqlite3
 

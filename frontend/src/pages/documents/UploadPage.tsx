@@ -16,126 +16,102 @@ export function UploadPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  useEffect(() => {
-    listTemplates().then(setTemplates).catch(() => {});
-  }, []);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  useEffect(() => { listTemplates().then(setTemplates).catch(() => {}); }, []);
 
   function validateAndSetFile(file: File) {
-    const extension = "." + file.name.split(".").pop()?.toLowerCase();
-    if (!SUPPORTED_TYPES.includes(extension)) {
-      setError(`Formato no soportado: ${extension}. Formatos válidos: JPEG, PNG, PDF. Para archivos ZIP use Carga Masiva.`);
-      return;
-    }
+    const ext = "." + file.name.split(".").pop()?.toLowerCase();
+    if (!SUPPORTED_TYPES.includes(ext)) { setError(`Formato no soportado: ${ext}. Use JPEG, PNG o PDF. Para ZIP use Carga Masiva.`); return; }
     setError(null);
     setSelectedFile(file);
   }
 
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (file) validateAndSetFile(file);
-  }
+  function handleDrop(e: DragEvent<HTMLDivElement>) { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files[0]; if (f) validateAndSetFile(f); }
 
   async function handleProcess() {
     if (!selectedFile) return;
     setIsUploading(true);
     setError(null);
-    setStatusMessage("Procesando su documento...");
-
     try {
       const result = await uploadDocument(selectedFile, processingMode, selectedTemplateId || undefined);
       navigate(`/documents/${result.id}`);
     } catch (err) {
       setError(extractErrorMessage(err, "No se pudo procesar el documento."));
-      setStatusMessage(null);
     } finally {
       setIsUploading(false);
     }
   }
 
   return (
-    <div className="page">
-      <h1>Carga de Documento</h1>
-      <p className="proration-note">
-        Procesamiento individual (máx. 5 páginas por PDF). Para múltiples documentos use{" "}
-        <Link to="/batches/upload">Carga Masiva</Link>.
-      </p>
-
-      <section className="card">
-        <h2>Modo de Procesamiento</h2>
-        <label className="radio-label">
-          <input
-            type="radio"
-            name="processingMode"
-            checked={processingMode === "express"}
-            onChange={() => setProcessingMode("express")}
-          />
-          <strong>Express (sin persistencia)</strong> — el resultado sólo está disponible durante tu sesión activa; imágenes y
-          datos en bruto se destruyen de inmediato.
-        </label>
-        <label className="radio-label">
-          <input
-            type="radio"
-            name="processingMode"
-            checked={processingMode === "almacenado"}
-            onChange={() => setProcessingMode("almacenado")}
-          />
-          <strong>Almacenado (retención de 5 días)</strong> — imágenes y datos extraídos se conservan 5 días y luego se
-          eliminan físicamente.
-        </label>
-      </section>
-
-      {templates.length > 0 && (
-        <section className="card">
-          <h2>Plantilla de Extracción (opcional)</h2>
-          <p className="proration-note">Selecciona una plantilla para extraer campos específicos. Si no seleccionas ninguna, el sistema detectará el tipo de documento automáticamente.</p>
-          <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)} style={{ marginTop: "0.5rem" }}>
-            <option value="">Detección automática</option>
-            {templates.map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>
-                {tpl.name} ({tpl.field_definitions.length} campos){tpl.user_id === null ? " — Global" : ""}
-              </option>
-            ))}
-          </select>
-        </section>
-      )}
-
-      <section
-        className="dropzone"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={handleDrop}
-        role="button"
-        tabIndex={0}
-      >
-        <p>Arrastra y suelta un archivo aquí, o</p>
-        <button type="button" onClick={() => fileInputRef.current?.click()}>
-          Seleccionar Archivo
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          hidden
-          accept={SUPPORTED_TYPES.join(",")}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) validateAndSetFile(file);
-          }}
-        />
-        {selectedFile && (
-          <p>
-            Archivo seleccionado: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-          </p>
-        )}
-      </section>
+    <div>
+      <h1>Digitalizar Documento</h1>
+      <p className="text-sm text-slate-500 mb-6">Procesamiento individual (máx. 5 páginas por PDF). Para múltiples documentos use <Link to="/batches/upload">Carga Masiva</Link>.</p>
 
       {error && <Alert variant="error">{error}</Alert>}
-      {statusMessage && <Alert variant="info">{statusMessage}</Alert>}
 
-      <button type="button" disabled={!selectedFile || isUploading} onClick={handleProcess}>
-        {isUploading ? "Procesando..." : "Procesar Documentos"}
-      </button>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Dropzone */}
+          <div
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${isDragOver ? "border-blue-400 bg-blue-50" : "border-slate-300 bg-white hover:border-blue-300"}`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="text-4xl mb-3">📄</div>
+            <p className="text-sm font-medium text-slate-700">Arrastra y suelta un archivo aquí</p>
+            <p className="text-xs text-slate-400 mt-1">o haz clic para seleccionar (JPEG, PNG, PDF)</p>
+            <input ref={fileInputRef} type="file" hidden accept={SUPPORTED_TYPES.join(",")} onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); }} />
+          </div>
+
+          {selectedFile && (
+            <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+              <span className="text-blue-600 text-lg">📎</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800 truncate">{selectedFile.name}</p>
+                <p className="text-xs text-slate-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button type="button" onClick={() => setSelectedFile(null)} className="text-slate-400 hover:text-red-500 text-lg">✕</button>
+            </div>
+          )}
+        </div>
+
+        {/* Settings sidebar */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h2>Modo</h2>
+            <div className="space-y-2">
+              {([["express", "Express", "Sin persistencia, disponible sólo en sesión activa"], ["almacenado", "Almacenado", "Retención de 5 días"]] as const).map(([value, label, desc]) => (
+                <label key={value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${processingMode === value ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>
+                  <input type="radio" name="mode" checked={processingMode === value} onChange={() => setProcessingMode(value)} className="mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{label}</p>
+                    <p className="text-xs text-slate-500">{desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {templates.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2>Plantilla</h2>
+              <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <option value="">Detección automática</option>
+                {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.field_definitions.length} campos)</option>)}
+              </select>
+            </div>
+          )}
+
+          <button type="button" disabled={!selectedFile || isUploading} onClick={handleProcess} className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:bg-slate-300 disabled:cursor-not-allowed transition text-sm">
+            {isUploading ? "Procesando..." : "Procesar Documento"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

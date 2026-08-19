@@ -17,16 +17,8 @@ export function RegisterPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-
-    if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
-      return;
-    }
-    if (!acceptedTerms) {
-      setError("Debe aceptar los Términos y Condiciones y la Política de Privacidad.");
-      return;
-    }
-
+    if (password !== confirmPassword) { setError("Las contraseñas no coinciden."); return; }
+    if (!acceptedTerms) { setError("Debe aceptar los Términos y Condiciones."); return; }
     setIsSubmitting(true);
     try {
       await register(email, password);
@@ -39,49 +31,42 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="auth-page">
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        <h1>Crear Cuenta</h1>
-        <p className="freemium-note">
-          Tu cuenta inicia en el plan <strong>Freemium</strong>: 50 páginas gratis por mes.
-        </p>
-        {error && <Alert variant="error">{error}</Alert>}
+    <div className="min-h-[80vh] flex items-center justify-center">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-blue-600">Trust OCR+</h1>
+        </div>
+        <form className="bg-white shadow-lg rounded-xl p-8 border border-slate-200" onSubmit={handleSubmit} noValidate>
+          <h2 className="text-xl font-semibold text-center mb-2">Crear Cuenta</h2>
+          <p className="text-center text-sm text-blue-600 bg-blue-50 rounded-lg px-3 py-2 mb-6">Plan Freemium: 50 páginas gratis por mes</p>
+          {error && <Alert variant="error">{error}</Alert>}
 
-        <label htmlFor="email">Correo Electrónico</label>
-        <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+              <input id="password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">Confirmar Contraseña</label>
+              <input id="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
+            </div>
+            <label className="flex items-start gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="mt-0.5 rounded border-slate-300" />
+              Acepto los Términos y Condiciones y la Política de Privacidad
+            </label>
+          </div>
 
-        <label htmlFor="password">Contraseña</label>
-        <input
-          id="password"
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <button type="submit" disabled={isSubmitting} className="mt-6 w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:bg-slate-300 disabled:cursor-not-allowed transition">
+            {isSubmitting ? "Registrando..." : "Registrarse"}
+          </button>
 
-        <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-        <input
-          id="confirmPassword"
-          type="password"
-          required
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-        />
-
-        <label className="checkbox-label">
-          <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
-          Acepto los Términos y Condiciones y la Política de Privacidad
-        </label>
-
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Registrando..." : "Registrarse"}
-        </button>
-
-        <p>
-          ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
-        </p>
-      </form>
+          <p className="mt-4 text-center text-sm">¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link></p>
+        </form>
+      </div>
     </div>
   );
 }

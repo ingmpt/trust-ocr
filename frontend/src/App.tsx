@@ -6,7 +6,6 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UploadPage } from "./pages/documents/UploadPage";
 import { ResultPage } from "./pages/documents/ResultPage";
-import { BatchResultsPage } from "./pages/documents/BatchResultsPage";
 import { PlansPage } from "./pages/plans/PlansPage";
 import { PaymentMethodsPage } from "./pages/billing/PaymentMethodsPage";
 import { InvoicesPage } from "./pages/billing/InvoicesPage";
@@ -35,7 +34,6 @@ function App() {
 
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/documents/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-        <Route path="/documents/batch" element={<ProtectedRoute><BatchResultsPage /></ProtectedRoute>} />
         <Route path="/documents/:documentId" element={<ProtectedRoute><ResultPage /></ProtectedRoute>} />
         <Route path="/plans" element={<ProtectedRoute><PlansPage /></ProtectedRoute>} />
         <Route path="/billing/payment-methods" element={<ProtectedRoute><PaymentMethodsPage /></ProtectedRoute>} />

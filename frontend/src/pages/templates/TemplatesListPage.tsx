@@ -4,70 +4,60 @@ import { deleteTemplate, listTemplates, type TemplateRead } from "../../api/temp
 import { Alert } from "../../components/Alert";
 
 export function TemplatesListPage() {
-  const [templates, setTemplates] = useState<TemplateRead[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-
-  function load() {
-    listTemplates().then(setTemplates).catch(() => setError("No se pudieron cargar las plantillas."));
-  }
-
+  const [templates, setTemplates] = useState<TemplateRead[]>([]); const [error, setError] = useState<string | null>(null); const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  function load() { listTemplates().then(setTemplates).catch(() => setError("No se pudieron cargar.")); }
   useEffect(load, []);
+  async function confirmDelete(id: string) { await deleteTemplate(id); setPendingDeleteId(null); load(); }
 
-  async function confirmDelete(id: string) {
-    await deleteTemplate(id);
-    setPendingDeleteId(null);
-    load();
-  }
-
-  const globalTemplates = templates.filter((t) => t.user_id === null);
-  const myTemplates = templates.filter((t) => t.user_id !== null);
+  const global = templates.filter((t) => t.user_id === null);
+  const mine = templates.filter((t) => t.user_id !== null);
 
   return (
-    <div className="page">
-      <h1>Plantillas de Documento</h1>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="mb-0">Plantillas de Documento</h1>
+        <Link to="/templates/new" className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 no-underline transition">Nueva Plantilla</Link>
+      </div>
       {error && <Alert variant="error">{error}</Alert>}
 
-      <Link to="/templates/new" className="button-link">
-        Crear Nueva Plantilla
-      </Link>
-
-      <section className="card" style={{ marginTop: "1rem" }}>
+      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
         <h2>Catálogo Global</h2>
-        <p className="proration-note">Plantillas predefinidas disponibles para todos los usuarios.</p>
-        {globalTemplates.length === 0 && <p>No hay plantillas globales.</p>}
-        <ul className="document-list">
-          {globalTemplates.map((tpl) => (
-            <li key={tpl.id}>
-              <strong>{tpl.name}</strong> — {tpl.field_definitions.length} campos — {tpl.description}
-            </li>
+        <p className="text-xs text-slate-400 mb-4">Plantillas disponibles para todos los usuarios.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {global.map((t) => (
+            <div key={t.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-sm font-medium text-slate-800">{t.name}</p>
+              <p className="text-xs text-slate-500 mt-1">{t.field_definitions.length} campos — {t.description}</p>
+            </div>
           ))}
-        </ul>
-      </section>
+        </div>
+      </div>
 
-      <section className="card">
-        <h2>Mis Plantillas Personalizadas</h2>
-        {myTemplates.length === 0 && <p>Aún no has creado plantillas personalizadas.</p>}
-        <ul className="document-list">
-          {myTemplates.map((tpl) => (
-            <li key={tpl.id}>
-              <strong>{tpl.name}</strong> — {tpl.field_definitions.length} campos
-              <Link to={`/templates/${tpl.id}/edit`} style={{ marginLeft: "0.5rem" }}>
-                Editar
-              </Link>
-              {pendingDeleteId === tpl.id ? (
-                <span className="confirm-inline">
-                  ¿Eliminar?
-                  <button type="button" onClick={() => confirmDelete(tpl.id)}>Confirmar</button>
-                  <button type="button" onClick={() => setPendingDeleteId(null)}>Cancelar</button>
-                </span>
-              ) : (
-                <button type="button" onClick={() => setPendingDeleteId(tpl.id)}>Eliminar</button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2>Mis Plantillas</h2>
+        {mine.length === 0 ? <p className="text-sm text-slate-500">Sin plantillas personalizadas.</p> : (
+          <div className="space-y-3">
+            {mine.map((t) => (
+              <div key={t.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.field_definitions.length} campos</p>
+                </div>
+                <div className="flex gap-3">
+                  {pendingDeleteId === t.id ? (
+                    <>
+                      <button type="button" onClick={() => confirmDelete(t.id)} className="text-xs text-red-600 hover:underline">Confirmar</button>
+                      <button type="button" onClick={() => setPendingDeleteId(null)} className="text-xs text-slate-500 hover:underline">Cancelar</button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setPendingDeleteId(t.id)} className="text-xs text-red-500 hover:text-red-700">Eliminar</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { uploadBatch, uploadDocument } from "../../api/documents";
+import { Link, useNavigate } from "react-router-dom";
+import { uploadDocument } from "../../api/documents";
 import { extractErrorMessage } from "../../api/client";
 import { listTemplates, type TemplateRead } from "../../api/templates";
 import { Alert } from "../../components/Alert";
 
-const SUPPORTED_TYPES = [".jpg", ".jpeg", ".png", ".pdf", ".zip"];
+const SUPPORTED_TYPES = [".jpg", ".jpeg", ".png", ".pdf"];
 
 export function UploadPage() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export function UploadPage() {
   function validateAndSetFile(file: File) {
     const extension = "." + file.name.split(".").pop()?.toLowerCase();
     if (!SUPPORTED_TYPES.includes(extension)) {
-      setError(`Formato no soportado: ${extension}. Formatos válidos: JPEG, PNG, PDF, ZIP.`);
+      setError(`Formato no soportado: ${extension}. Formatos válidos: JPEG, PNG, PDF. Para archivos ZIP use Carga Masiva.`);
       return;
     }
     setError(null);
@@ -45,15 +45,8 @@ export function UploadPage() {
     setStatusMessage("Procesando su documento...");
 
     try {
-      const isZip = selectedFile.name.toLowerCase().endsWith(".zip");
-      if (isZip) {
-        const result = await uploadBatch(selectedFile, processingMode, selectedTemplateId || undefined);
-        setStatusMessage(`Lote procesado: ${result.total_documents} documento(s).`);
-        navigate(`/documents/batch?ids=${result.document_ids.join(",")}`);
-      } else {
-        const result = await uploadDocument(selectedFile, processingMode, selectedTemplateId || undefined);
-        navigate(`/documents/${result.id}`);
-      }
+      const result = await uploadDocument(selectedFile, processingMode, selectedTemplateId || undefined);
+      navigate(`/documents/${result.id}`);
     } catch (err) {
       setError(extractErrorMessage(err, "No se pudo procesar el documento."));
       setStatusMessage(null);
@@ -64,7 +57,11 @@ export function UploadPage() {
 
   return (
     <div className="page">
-      <h1>Carga de Documentos</h1>
+      <h1>Carga de Documento</h1>
+      <p className="proration-note">
+        Procesamiento individual (máx. 5 páginas por PDF). Para múltiples documentos use{" "}
+        <Link to="/batches/upload">Carga Masiva</Link>.
+      </p>
 
       <section className="card">
         <h2>Modo de Procesamiento</h2>

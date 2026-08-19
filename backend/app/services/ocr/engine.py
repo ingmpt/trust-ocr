@@ -34,7 +34,15 @@ class PaddleOCREngine(BaseOCREngine):
         raw_result = self._ocr.ocr(image, cls=True)
         lines: list[OCRLine] = []
         for block in raw_result or []:
-            for _box, (text, score) in block:
+            if block is None:
+                continue
+            for item in block:
+                if item is None or len(item) < 2:
+                    continue
+                _box, text_score = item
+                if text_score is None or len(text_score) < 2:
+                    continue
+                text, score = text_score
                 lines.append(OCRLine(text=text, confidence=round(score * 100, 2)))
         return lines
 

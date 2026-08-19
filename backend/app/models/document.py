@@ -14,6 +14,7 @@ class Document(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("batches.id"), nullable=True, index=True)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     processing_mode: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
@@ -26,6 +27,7 @@ class Document(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # sólo "almacenado"
 
     user: Mapped["User"] = relationship(back_populates="documents")
+    batch: Mapped["Batch | None"] = relationship(back_populates="documents")
     extraction_result: Mapped["ExtractionResult | None"] = relationship(
         back_populates="document", uselist=False, cascade="all, delete-orphan"
     )

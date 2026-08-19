@@ -1,4 +1,5 @@
 """Importa todos los modelos para que Base los registre (usado por Alembic)."""
+from app.models.batch import Batch
 from app.models.billing import Invoice, PaymentMethod
 from app.models.compliance import ArcoRequest, AuditLog
 from app.models.document import Document, ExtractionResult
@@ -19,4 +20,5 @@ __all__ = [
     "ArcoRequest",
     "AuditLog",
     "DocumentTemplate",
+    "Batch",
 ]

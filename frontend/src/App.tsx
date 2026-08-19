@@ -14,6 +14,9 @@ import { ProfilePage } from "./pages/account/ProfilePage";
 import { ApiKeysPage } from "./pages/account/ApiKeysPage";
 import { TemplatesListPage } from "./pages/templates/TemplatesListPage";
 import { TemplateCreatePage } from "./pages/templates/TemplateCreatePage";
+import { BatchUploadPage } from "./pages/batches/BatchUploadPage";
+import { BatchListPage } from "./pages/batches/BatchListPage";
+import { BatchDetailPage } from "./pages/batches/BatchDetailPage";
 import { ArcoIdentityPage } from "./pages/arco/ArcoIdentityPage";
 import { ArcoRightSelectorPage } from "./pages/arco/ArcoRightSelectorPage";
 import { ArcoAccessPage } from "./pages/arco/ArcoAccessPage";
@@ -41,6 +44,9 @@ function App() {
         <Route path="/account/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
         <Route path="/templates" element={<ProtectedRoute><TemplatesListPage /></ProtectedRoute>} />
         <Route path="/templates/new" element={<ProtectedRoute><TemplateCreatePage /></ProtectedRoute>} />
+        <Route path="/batches" element={<ProtectedRoute><BatchListPage /></ProtectedRoute>} />
+        <Route path="/batches/upload" element={<ProtectedRoute><BatchUploadPage /></ProtectedRoute>} />
+        <Route path="/batches/:batchId" element={<ProtectedRoute><BatchDetailPage /></ProtectedRoute>} />
 
         {/* Portal ARCO: público, sin autenticación de sesión (HU 3.2) */}
         <Route path="/arco/identificacion" element={<ArcoIdentityPage />} />

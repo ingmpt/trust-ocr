@@ -20,7 +20,8 @@ export function Layout({ children }: { children: ReactNode }) {
           </Link>
           <nav className="navbar-links">
             <Link to="/dashboard">Panel de Control</Link>
-            <Link to="/documents/upload">Cargar Documentos</Link>
+            <Link to="/documents/upload">Cargar Documento</Link>
+            <Link to="/batches">Carga Masiva</Link>
             <Link to="/plans">Planes</Link>
             <Link to="/billing/invoices">Facturas</Link>
             <Link to="/billing/payment-methods">Métodos de Pago</Link>

@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # OCR
     ocr_engine: str = "mock"
+    max_online_pdf_pages: int = 5
 
     # LLM
     gemini_api_key: str = ""

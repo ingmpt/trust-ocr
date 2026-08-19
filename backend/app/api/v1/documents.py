@@ -40,25 +40,6 @@ def upload_document(
     )
 
 
-@router.post("/documents/batch", response_model=BatchUploadResponse, status_code=201)
-def upload_batch(
-    db: DbSession,
-    user: CurrentUserAny,
-    file: UploadFile = File(...),
-    processing_mode: str = Form("express"),
-    template_id: str = Form(""),
-):
-    service = DocumentService(db)
-    tid = uuid.UUID(template_id) if template_id else None
-    documents = service.upload_batch(user, file, processing_mode, template_id=tid)
-    return BatchUploadResponse(
-        batch_id=uuid.uuid4(),
-        document_ids=[document.id for document in documents],
-        total_documents=len(documents),
-        estimated_seconds=service.estimate_processing_seconds(len(documents)),
-    )
-
-
 @router.get("/documents/{document_id}", response_model=DocumentResultRead)
 def get_document_result(document_id: uuid.UUID, db: DbSession, user: CurrentUserAny):
     return DocumentService(db).get_result(user, document_id)

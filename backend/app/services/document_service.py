@@ -61,6 +61,13 @@ class DocumentService:
         content = file.file.read()
         page_count = self._count_pages(content)
 
+        if page_count > settings.max_online_pdf_pages:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"El documento tiene {page_count} páginas y excede el límite de procesamiento en línea "
+                f"({settings.max_online_pdf_pages} páginas). Use la Carga Masiva para documentos grandes.",
+            )
+
         subscription = self.credits.get_active_subscription(user)
         self.credits.reserve_pages(subscription, page_count)
         if self.credits.is_near_limit(subscription):

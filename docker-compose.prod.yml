@@ -13,7 +13,6 @@
 # tanto para la sustitución de variables en este YAML como via `env_file:`.)
 # Las imágenes se construyen localmente en el servidor a partir de
 # backend/Dockerfile y frontend/Dockerfile (mismo contexto que en local).
-version: '3.9'
 
 services:
   postgres:

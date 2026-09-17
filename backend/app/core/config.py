@@ -1,7 +1,32 @@
-"""Configuración centralizada de la aplicación, cargada desde variables de entorno."""
+"""Configuración centralizada de la aplicación, cargada desde variables de entorno.
+
+Flujo de secretos (ver backend/app/bootstrap_secrets.py):
+- Si SECRETS_PROVIDER=infisical está presente en el entorno (o en .env), todos
+  los secretos de negocio (SECRET_KEY, GEMINI_API_KEY, R2_*, ZOHO_*,
+  AUDIT_SIGNING_API_KEY, CULQI_*, NUBEFACT_*, etc.) se descargan de Infisical
+  y se inyectan en el entorno de este proceso ANTES de construir `Settings`.
+  `.env` sólo debe contener en ese caso las variables "bootstrap" para
+  autenticar contra Infisical (INFISICAL_API_URL/CLIENT_ID/CLIENT_SECRET/
+  PROJECT_ID/ENVIRONMENT), nunca secretos de negocio reales.
+- Si SECRETS_PROVIDER no está definido, se mantiene el comportamiento legado:
+  todas las variables se leen directamente de `.env` (sólo para desarrollo
+  puntual sin acceso a Infisical).
+"""
+import os
 from functools import lru_cache
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Carga .env como variables de entorno reales (idempotente) para que el chequeo
+# de SECRETS_PROVIDER de abajo funcione tanto en Docker como corriendo uvicorn
+# directamente desde el venv.
+load_dotenv()
+
+if os.environ.get("SECRETS_PROVIDER") == "infisical":
+    from app.bootstrap_secrets import apply_to_environ
+
+    apply_to_environ()
 
 
 class Settings(BaseSettings):

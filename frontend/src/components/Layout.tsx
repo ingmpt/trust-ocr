@@ -18,6 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const navLinks = user?.role === "admin" ? [...NAV_LINKS, { to: "/admin/templates/drafts", label: "Admin: Plantillas" }] : NAV_LINKS;
 
   function handleLogout() {
     logout();
@@ -36,7 +37,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
               {/* Desktop nav */}
               <nav className="hidden lg:flex items-center gap-1">
-                {NAV_LINKS.map((link) => (
+                {navLinks.map((link) => (
                   <Link key={link.to} to={link.to} className="px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 no-underline transition-colors">
                     {link.label}
                   </Link>
@@ -63,7 +64,7 @@ export function Layout({ children }: { children: ReactNode }) {
           {menuOpen && (
             <div className="lg:hidden border-t border-slate-200 bg-white">
               <div className="px-4 py-3 space-y-1">
-                {NAV_LINKS.map((link) => (
+                {navLinks.map((link) => (
                   <Link key={link.to} to={link.to} onClick={() => setMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 no-underline">
                     {link.label}
                   </Link>

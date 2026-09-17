@@ -151,4 +151,18 @@ Como usuario, quiero gestionar mi información personal (correo electrónico, co
   - Los usuarios pueden generar y gestionar sus claves API.
 - Prioridad: Must have
 
+### Historia de usuario 4.2
+Como administrador de la plataforma, quiero un panel para revisar, aprobar, editar o rechazar plantillas de documento sugeridas automáticamente por el sistema, para mantener el catálogo de plantillas con buena calidad sin que crezca de forma descontrolada.
+- Criterios de aceptación:
+  - El sistema soporta un rol de administrador (`admin`) diferenciado del rol de usuario estándar.
+  - Solo usuarios con rol `admin` pueden acceder al panel de administración de plantillas.
+  - Cuando un documento no coincide con ninguna plantilla existente del usuario, el sistema genera automáticamente (en segundo plano, sin bloquear la respuesta al usuario) una plantilla sugerida en estado "borrador" (`is_draft = true`) a partir de los campos detectados.
+  - Las plantillas en estado "borrador" no participan en la clasificación automática de documentos (HU 1.2) hasta ser aprobadas, para evitar degradar la precisión con plantillas de baja calidad.
+  - El panel de administración lista las plantillas en estado "borrador" pendientes de revisión.
+  - El administrador puede aprobar una plantilla borrador (pasa a estado activo y queda disponible para clasificación automática), editarla (nombre, descripción, campos) antes de aprobar, o rechazarla (se elimina).
+  - El administrador puede activar/desactivar cualquier plantilla del catálogo global en cualquier momento.
+  - El sistema evita crear una plantilla borrador duplicada si ya existe una plantilla (activa o borrador) suficientemente similar para el mismo tipo de documento.
+- Prioridad: Should have
+- Nota: alcance definido a partir de conversación de diseño durante el desarrollo del MVP (ver artefacto de cierre); pendiente de estimación y priorización formal antes de su construcción.
+
 ## Elementos que requieren definición adicional

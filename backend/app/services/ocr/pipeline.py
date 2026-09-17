@@ -14,10 +14,11 @@ from app.services.ocr.preprocessing import preprocess_image
 
 
 class ExtractionPipelineResult:
-    def __init__(self, document_type: str, fields: dict[str, dict], raw_text: str = ""):
+    def __init__(self, document_type: str, fields: dict[str, dict], raw_text: str = "", raw_fields: list[dict] | None = None):
         self.document_type = document_type
         self.fields = fields
         self.raw_text = raw_text
+        self.raw_fields = raw_fields  # name+label sin curar, usado para sugerir plantillas borrador (HU 4.2)
 
 
 def run_ocr(file_bytes: bytes) -> str:
@@ -32,10 +33,19 @@ def run_ocr(file_bytes: bytes) -> str:
     return "\n".join(raw_text_parts)
 
 
-def run_extraction_pipeline(file_bytes: bytes, template_fields: list[dict] | None = None, ocr_text: str | None = None) -> ExtractionPipelineResult:
-    """Pipeline optimizado: acepta texto OCR pre-computado para evitar ejecutar OCR dos veces."""
+def run_extraction_pipeline(
+    file_bytes: bytes,
+    template_fields: list[dict] | None = None,
+    ocr_text: str | None = None,
+    precomputed_fields: dict[str, dict] | None = None,
+) -> ExtractionPipelineResult:
+    """Pipeline optimizado: acepta texto OCR y/o campos ya extraídos (vía clasificación
+    automática fusionada) para evitar ejecutar OCR o llamadas LLM redundantes."""
     if ocr_text is None:
         ocr_text = run_ocr(file_bytes)
+
+    if precomputed_fields is not None:
+        return ExtractionPipelineResult(document_type="plantilla", fields=precomputed_fields, raw_text=ocr_text)
 
     if template_fields:
         extracted = extract_template_fields(ocr_text, template_fields)
@@ -45,5 +55,7 @@ def run_extraction_pipeline(file_bytes: bytes, template_fields: list[dict] | Non
     document_type = classify_document(ocr_text)
     all_fields = extract_all_fields(ocr_text)
     generic_fields = {f["name"]: {"value": f.get("value"), "confidence": f.get("confidence", 0)} for f in all_fields if f.get("name")}
-    return ExtractionPipelineResult(document_type=document_type or "desconocido", fields=generic_fields, raw_text=ocr_text)
+    return ExtractionPipelineResult(
+        document_type=document_type or "desconocido", fields=generic_fields, raw_text=ocr_text, raw_fields=all_fields
+    )
 

@@ -19,6 +19,7 @@ class DocumentTemplate(Base):
     field_definitions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     sample_text_hint: Mapped[str] = mapped_column(Text, nullable=False, default="")
     is_active: Mapped[bool] = mapped_column(default=True)
+    is_draft: Mapped[bool] = mapped_column(default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

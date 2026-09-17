@@ -1,0 +1,77 @@
+# Entorno de STAGING (Directiva 3 del mandato DevSecOps): DB/Redis efímeras
+# dockerizadas dentro del propio runner, OCR_ENGINE=mock (sin dependencias
+# pesadas de ML), integraciones externas (Gemini/R2/Zoho) no aplican al no
+# estar configuradas en CI.
+# Guardrail obligatorio: si la cobertura de tests < 90%, el pipeline falla
+# (Fail Fast) y no se genera artefacto para producción. HOY este job FALLARÁ
+# porque solo existe un smoke test — es intencional, no un bug del pipeline
+# (ver tests/test_health.py).
+name: CI (staging / quality gate)
+
+on:
+  push:
+    branches: [develop, staging]
+  pull_request:
+    branches: [main, develop, staging]
+  workflow_call: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trustocr
+          POSTGRES_PASSWORD: trustocr_ci
+          POSTGRES_DB: trustocr
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trustocr -d trustocr"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      APP_ENV: test
+      APP_DEBUG: "false"
+      SECRET_KEY: ci_only_dummy_secret_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      DATABASE_URL: postgresql+psycopg2://trustocr:trustocr_ci@localhost:5433/trustocr
+      REDIS_URL: redis://localhost:6379/0
+      OCR_ENGINE: mock
+      AUDIT_SIGNING_PROVIDER: none
+      FRONTEND_ORIGIN: http://localhost:5173
+      SECRETS_PROVIDER: "" # CI never talks to Infisical — plain env only
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Unit + integration tests with coverage
+        run: pytest
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-coverage
+          path: backend/.coverage

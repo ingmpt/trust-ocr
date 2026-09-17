@@ -20,11 +20,15 @@ class TemplateRepository:
         return self.db.get(DocumentTemplate, template_id)
 
     def list_for_user(self, user_id: uuid.UUID) -> list[DocumentTemplate]:
-        """Devuelve plantillas globales (user_id=None) + las del usuario."""
+        """Devuelve plantillas globales (user_id=None) + las del usuario, sin borradores."""
         return list(
             self.db.scalars(
                 select(DocumentTemplate)
-                .where(or_(DocumentTemplate.user_id.is_(None), DocumentTemplate.user_id == user_id), DocumentTemplate.is_active.is_(True))
+                .where(
+                    or_(DocumentTemplate.user_id.is_(None), DocumentTemplate.user_id == user_id),
+                    DocumentTemplate.is_active.is_(True),
+                    DocumentTemplate.is_draft.is_(False),
+                )
                 .order_by(DocumentTemplate.user_id.is_(None).desc(), DocumentTemplate.name)
             )
         )
@@ -32,10 +36,28 @@ class TemplateRepository:
     def list_global(self) -> list[DocumentTemplate]:
         return list(
             self.db.scalars(
-                select(DocumentTemplate).where(DocumentTemplate.user_id.is_(None), DocumentTemplate.is_active.is_(True)).order_by(DocumentTemplate.name)
+                select(DocumentTemplate)
+                .where(DocumentTemplate.user_id.is_(None), DocumentTemplate.is_active.is_(True), DocumentTemplate.is_draft.is_(False))
+                .order_by(DocumentTemplate.name)
             )
+        )
+
+    def list_drafts(self) -> list[DocumentTemplate]:
+        """Borradores sugeridos automáticamente, pendientes de revisión por un admin (HU 4.2)."""
+        return list(
+            self.db.scalars(select(DocumentTemplate).where(DocumentTemplate.is_draft.is_(True)).order_by(DocumentTemplate.created_at.desc()))
+        )
+
+    def list_candidates_for_dedup(self) -> list[DocumentTemplate]:
+        """Plantillas globales o borrador contra las que comparar antes de sugerir un nuevo borrador."""
+        return list(
+            self.db.scalars(select(DocumentTemplate).where(or_(DocumentTemplate.user_id.is_(None), DocumentTemplate.is_draft.is_(True))))
         )
 
     def save(self, template: DocumentTemplate) -> None:
         self.db.add(template)
+        self.db.flush()
+
+    def delete(self, template: DocumentTemplate) -> None:
+        self.db.delete(template)
         self.db.flush()

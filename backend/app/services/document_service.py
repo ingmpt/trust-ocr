@@ -78,14 +78,16 @@ class DocumentService:
         ocr_text = run_ocr(content)
 
         template_fields = None
+        precomputed_fields = None
         if template_id:
             template = TemplateService(self.db).get_template(user, template_id)
             template_fields = template.field_definitions
         else:
             svc = TemplateService(self.db)
-            matched, _ = svc.auto_classify_and_extract(user, ocr_text)
+            matched, fields = svc.auto_classify_and_extract(user, ocr_text)
             if matched:
                 template_fields = matched.field_definitions
+                precomputed_fields = fields
 
         document = Document(
             user_id=user.id,
@@ -97,7 +99,7 @@ class DocumentService:
         self.documents.create(document)
         self.db.commit()
 
-        self._process_document(document, content, template_fields, ocr_text)
+        self._process_document(document, content, template_fields, ocr_text, precomputed_fields)
         return document
 
     def upload_batch(self, user: User, zip_file: UploadFile, processing_mode: str, template_id: uuid.UUID | None = None) -> list[Document]:
@@ -125,11 +127,13 @@ class DocumentService:
                 ocr_text = run_ocr(file_bytes)
 
                 template_fields = fixed_template_fields
+                precomputed_fields = None
                 if template_fields is None:
                     svc = TemplateService(self.db)
-                    matched, _ = svc.auto_classify_and_extract(user, ocr_text)
+                    matched, fields = svc.auto_classify_and_extract(user, ocr_text)
                     if matched:
                         template_fields = matched.field_definitions
+                        precomputed_fields = fields
 
                 document = Document(
                     user_id=user.id,
@@ -141,7 +145,7 @@ class DocumentService:
                 self.documents.create(document)
                 self.db.commit()
 
-                self._process_document(document, file_bytes, template_fields, ocr_text)
+                self._process_document(document, file_bytes, template_fields, ocr_text, precomputed_fields)
                 documents.append(document)
 
         if self.credits.is_near_limit(self.credits.get_active_subscription(user)):
@@ -149,10 +153,19 @@ class DocumentService:
 
         return documents
 
-    def _process_document(self, document: Document, content: bytes, template_fields: list[dict] | None = None, ocr_text: str | None = None) -> None:
+    def _process_document(
+        self,
+        document: Document,
+        content: bytes,
+        template_fields: list[dict] | None = None,
+        ocr_text: str | None = None,
+        precomputed_fields: dict[str, dict] | None = None,
+    ) -> None:
         started_at = time.monotonic()
         try:
-            result = run_extraction_pipeline(content, template_fields=template_fields, ocr_text=ocr_text)
+            result = run_extraction_pipeline(
+                content, template_fields=template_fields, ocr_text=ocr_text, precomputed_fields=precomputed_fields
+            )
         except Exception as exc:  # noqa: BLE001 — se persiste el error, no se re-lanza (HU 1.3)
             document.status = DocumentStatus.FAILED.value
             document.error_message = str(exc)
@@ -164,6 +177,13 @@ class DocumentService:
         document.document_type = result.document_type
         document.completed_at = _utcnow()
         elapsed = time.monotonic() - started_at
+
+        if getattr(result, "raw_fields", None) and template_fields is None:
+            # Documento sin plantilla coincidente: sugiere una plantilla borrador en segundo
+            # plano, sin bloquear esta respuesta (HU 4.2).
+            from app.workers.tasks import create_draft_template_task
+
+            create_draft_template_task.delay(str(document.user_id), json.dumps(result.raw_fields))
 
         if document.processing_mode == ProcessingMode.EXPRESS.value:
             self._store_express_result(document, result.fields)

@@ -19,8 +19,9 @@ def list_templates(user: CurrentUserAny, db: DbSession):
 
 @router.post("", response_model=TemplateRead, status_code=status.HTTP_201_CREATED)
 def create_template(payload: TemplateCreate, user: CurrentUserAny, db: DbSession):
+    is_global = payload.make_global and user.role == "admin"
     return TemplateService(db).create_template(
-        user, payload.name, payload.description, [f.model_dump() for f in payload.field_definitions]
+        user, payload.name, payload.description, [f.model_dump() for f in payload.field_definitions], is_global
     )
 
 
@@ -62,6 +63,7 @@ def preview_extraction(user: CurrentUserAny, db: DbSession, file: UploadFile = F
 @router.post("/from-result", response_model=TemplateRead, status_code=status.HTTP_201_CREATED)
 def create_template_from_result(payload: TemplateCreate, user: CurrentUserAny, db: DbSession):
     """Crea una plantilla a partir de los campos de un resultado de extracción ya procesado."""
+    is_global = payload.make_global and user.role == "admin"
     return TemplateService(db).create_template(
-        user, payload.name, payload.description, [f.model_dump() for f in payload.field_definitions]
+        user, payload.name, payload.description, [f.model_dump() for f in payload.field_definitions], is_global
     )

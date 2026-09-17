@@ -64,3 +64,13 @@ def get_current_user_any(
 
 
 CurrentUserAny = Annotated[User, Depends(get_current_user_any)]
+
+
+def get_current_admin_user(current_user: CurrentUser) -> User:
+    """Restringe el acceso a usuarios con rol 'admin' (HU 4.2)."""
+    if current_user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Requiere permisos de administrador.")
+    return current_user
+
+
+CurrentAdminUser = Annotated[User, Depends(get_current_admin_user)]

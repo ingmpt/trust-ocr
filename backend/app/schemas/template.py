@@ -14,6 +14,7 @@ class TemplateCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str = ""
     field_definitions: list[FieldDefinition]
+    make_global: bool = False
 
 
 class TemplateUpdate(BaseModel):
@@ -29,9 +30,21 @@ class TemplateRead(BaseModel):
     description: str
     field_definitions: list[dict]
     is_active: bool
+    is_draft: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TemplateDraftApprove(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    field_definitions: list[FieldDefinition] | None = None
+    make_global: bool = True
+
+
+class TemplateActiveUpdate(BaseModel):
+    is_active: bool
 
 
 class ExtractedFieldPreview(BaseModel):

@@ -88,7 +88,20 @@ python -m venv .venv
 Copy-Item .env.example .env
 ```
 
-Revisar `.env` y completar credenciales reales sólo cuando se vayan a probar integraciones externas (Gemini, Cloudflare R2, Zoho, PaddleOCR/WeasyPrint). En modo local sin esas credenciales, la app funciona con los adaptadores mock/fallback.
+**Flujo de secretos (Infisical):** todos los secretos de negocio (`SECRET_KEY`, `GEMINI_API_KEY`, `R2_*`, `ZOHO_*`, `AUDIT_SIGNING_API_KEY`, `CULQI_*`, `NUBEFACT_*`) se gestionan en Infisical, no en `.env`. En `.env` sólo se completan las credenciales "bootstrap" para autenticar contra Infisical:
+
+```dotenv
+SECRETS_PROVIDER=infisical
+INFISICAL_API_URL=https://app.infisical.com
+INFISICAL_CLIENT_ID=...
+INFISICAL_CLIENT_SECRET=...
+INFISICAL_PROJECT_ID=...
+INFISICAL_ENVIRONMENT=dev
+```
+
+La app descarga esos secretos de Infisical en el arranque (`app/bootstrap_secrets.py`, invocado desde `app/core/config.py`), tanto corriendo `uvicorn` directo desde el venv como dentro de Docker (`docker-entrypoint.sh`). Si `SECRETS_PROVIDER` falta alguna variable bootstrap, la app falla explícitamente al arrancar en vez de continuar sin secretos.
+
+Fallback legado (sin Infisical, sólo para desarrollo puntual): dejar `SECRETS_PROVIDER` vacío y completar los valores reales directamente en `.env`. En modo local sin esas credenciales (ninguna de las dos opciones), la app funciona con los adaptadores mock/fallback (OCR, LLM, storage, PDF, correo).
 
 ### 4. Migraciones de base de datos
 
@@ -119,6 +132,33 @@ npm run dev
 - La app queda disponible en `http://localhost:5173` (Vite elige el siguiente puerto libre si está ocupado, p. ej. `5174`).
 - Si Vite usa un puerto distinto a 5173, actualizar `FRONTEND_ORIGIN` en `backend/.env` para que el CORS del backend lo acepte, y reiniciar la API.
 - El Portal ARCO es público: accesible desde `/arco/identificacion` sin iniciar sesión (enlace visible en la pantalla de Login).
+
+## Despliegue en producción (VPS con Traefik ya existente, IP pública 62.238.26.202)
+
+Flujo **manual** (sin CI/CD a GHCR; el workflow `.github/workflows/deploy-production.yml` queda desactivado con `workflow_dispatch` como respaldo futuro). El servidor ya tiene Traefik corriendo y gestionando otras aplicaciones — este despliegue solo se conecta a esa red externa, no instala un Traefik nuevo.
+
+### Primera vez (setup del servidor)
+
+1. Confirmar que Docker está instalado y que existe la red externa que usa el Traefik ya corriendo en el servidor (por defecto se asume `traefik-public`; si el nombre real es otro, ajustar la sección `networks` y las labels `traefik.docker.network` en `docker-compose.prod.yml`).
+2. Clonar el repo en `/opt/trust-ocr`.
+3. Crear `/opt/trust-ocr/.env` a partir de [`.env.example`](./.env.example) (permisos `600`) con las credenciales reales de Machine Identity de Infisical y las contraseñas de Postgres/Redis.
+4. DNS: apuntar `ocr.trustedtechnologyperu.com` y `app.trustedtechnologyperu.com` (registro A) a `62.238.26.202`.
+
+### Cada despliegue
+
+```bash
+cd /opt/trust-ocr
+git pull
+docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
+docker image prune -f
+```
+
+Docker Compose carga automáticamente el `.env` del mismo directorio (sustitución de variables + `env_file:` de cada servicio) — no hace falta pasar `--env-file`. `docker-compose.prod.yml` construye las imágenes de `api`/`celery-worker`/`celery-beat` desde `backend/Dockerfile` y de `frontend` desde `frontend/Dockerfile` directamente en el servidor (no usa registro externo). Todos los secretos de negocio (`SECRET_KEY`, `GEMINI_API_KEY`, `R2_*`, `ZOHO_*`, `AUDIT_SIGNING_API_KEY`, etc.) se descargan de Infisical en runtime; `.env` sólo trae las credenciales para autenticar contra Infisical y las de Postgres/Redis/Vite.
+
+`alembic upgrade head` es obligatorio en cada despliegue (no solo el primero): el contenedor `postgres` arranca con una base de datos vacía, y el esquema (tablas `users`, `documents`, `subscriptions`, `audit_log`, etc.) solo se crea/actualiza aplicando las migraciones de [`backend/alembic/versions`](./backend/alembic/versions). Se corre dentro del contenedor `api` (ya tiene el código, dependencias y `DATABASE_URL` correctos) en vez de instalar Alembic en el host. Si no hay migraciones nuevas pendientes, el comando es idempotente y no hace nada — por eso es seguro dejarlo siempre en el flujo de despliegue.
+
+**Nunca se commitea**: `.env`, `Infisical_secrets.txt` — excluidos explícitamente en [`.gitignore`](./.gitignore).
 
 ## Resultado de pruebas locales (smoke test manual)
 

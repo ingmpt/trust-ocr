@@ -1,0 +1,174 @@
+# Producción — VPS con Traefik ya instalado y gestionando otras aplicaciones
+# en ese mismo nodo. Requiere que la red externa `traefik-public` ya exista
+# (creada por el Traefik que ya corre en el servidor; no se crea aquí).
+# Único archivo de secretos: `.env` (mismo directorio que este compose, ver
+# `.env.example`). Contiene las credenciales para autenticar contra Infisical;
+# el resto de secretos de negocio (SECRET_KEY, GEMINI_API_KEY, R2_*, ZOHO_*,
+# AUDIT_SIGNING_API_KEY, etc.) se obtienen en runtime desde Infisical
+# (backend/app/bootstrap_secrets.py).
+#
+# Flujo de despliegue MANUAL: en el servidor,
+#   cd /opt/trust-ocr && git pull && docker compose -f docker-compose.prod.yml up -d --build
+# (Docker Compose carga automáticamente el archivo `.env` del mismo directorio,
+# tanto para la sustitución de variables en este YAML como via `env_file:`.)
+# Las imágenes se construyen localmente en el servidor a partir de
+# backend/Dockerfile y frontend/Dockerfile (mismo contexto que en local).
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trustocr_postgres_prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - trustocr_pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Sin `ports:` — solo alcanzable dentro de la red interna del compose
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: trustocr_redis_prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - trustocr_redisdata_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trustocr_api_prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      OCR_ENGINE: paddleocr
+    volumes:
+      - trustocr_paddleocr_models_prod:/root/.paddleocr
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.trustocr-api.rule=Host(`ocr.trustedtechnologyperu.com`)"
+      - "traefik.http.routers.trustocr-api.entrypoints=websecure"
+      - "traefik.http.routers.trustocr-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.trustocr-api.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.trustocr-api-headers.headers.stsSeconds=31536000"
+      - "traefik.http.routers.trustocr-api.middlewares=trustocr-api-headers"
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trustocr_celery_worker_prod
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      OCR_ENGINE: paddleocr
+    volumes:
+      - trustocr_paddleocr_models_prod:/root/.paddleocr
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trustocr_celery_beat_prod
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://ocr.trustedtechnologyperu.com/api/v1}
+    container_name: trustocr_frontend_prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.trustocr-frontend.rule=Host(`app.trustedtechnologyperu.com`)"
+      - "traefik.http.routers.trustocr-frontend.entrypoints=websecure"
+      - "traefik.http.routers.trustocr-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.trustocr-frontend.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.trustocr-frontend-headers.headers.stsSeconds=31536000"
+      - "traefik.http.routers.trustocr-frontend.middlewares=trustocr-frontend-headers"
+
+networks:
+  internal:
+  traefik-public:
+    external: true
+
+volumes:
+  trustocr_pgdata_prod:
+  trustocr_redisdata_prod:
+  trustocr_paddleocr_models_prod:

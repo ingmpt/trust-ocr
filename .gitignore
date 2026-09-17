@@ -6,15 +6,24 @@ __pycache__/
 
 # Variables de entorno (nunca commitear secretos reales)
 .env
+.env.local
 backend/.env
+.coverage
 
 # Archivos con credenciales/tokens
 cloudflare_key.txt
+Infisical_secrets.txt
 *.key
 *.pem
 
 # Bases de datos y volúmenes locales
 *.sqlite3
+
+# Artefactos runtime de Celery Beat (no se versionan)
+celerybeat-schedule
+
+# Backups locales
+*.bak
 
 # IDE
 .vscode/

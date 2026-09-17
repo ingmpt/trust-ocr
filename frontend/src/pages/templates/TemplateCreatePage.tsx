@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { createTemplate, previewExtraction, type ExtractedFieldPreview, type FieldDefinition } from "../../api/templates";
 import { extractErrorMessage } from "../../api/client";
 import { Alert } from "../../components/Alert";
+import { useAuth } from "../../context/AuthContext";
 
 export function TemplateCreatePage() {
   const navigate = useNavigate(); const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth(); const isAdmin = user?.role === "admin";
   const [name, setName] = useState(""); const [description, setDescription] = useState("");
+  const [makeGlobal, setMakeGlobal] = useState(false);
   const [previewFields, setPreviewFields] = useState<ExtractedFieldPreview[] | null>(null);
   const [selectedFields, setSelectedFields] = useState<Record<string, FieldDefinition>>({});
   const [isExtracting, setIsExtracting] = useState(false); const [isSaving, setIsSaving] = useState(false);
@@ -39,7 +42,7 @@ export function TemplateCreatePage() {
     const defs = Object.values(selectedFields);
     if (!name.trim() || defs.length === 0) { setError("Nombre y al menos un campo requerido."); return; }
     setIsSaving(true); setError(null);
-    try { await createTemplate({ name: name.trim(), description: description.trim(), field_definitions: defs }); navigate("/templates"); }
+    try { await createTemplate({ name: name.trim(), description: description.trim(), field_definitions: defs, make_global: makeGlobal }); navigate("/templates"); }
     catch (err) { setError(extractErrorMessage(err, "Error al guardar.")); }
     finally { setIsSaving(false); }
   }
@@ -107,6 +110,12 @@ export function TemplateCreatePage() {
           <form onSubmit={handleSave} className="max-w-md space-y-3">
             <input placeholder="Nombre de la plantilla" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
             <input placeholder="Descripción (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
+            {isAdmin && (
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" checked={makeGlobal} onChange={(e) => setMakeGlobal(e.target.checked)} className="rounded border-slate-300" />
+                Crear como plantilla global (visible para todos los usuarios)
+              </label>
+            )}
             <p className="text-xs text-slate-400">{Object.keys(selectedFields).length} campo(s)</p>
             <button type="submit" disabled={isSaving} className="w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-slate-300 transition">{isSaving ? "Guardando..." : "Guardar Plantilla"}</button>
           </form>

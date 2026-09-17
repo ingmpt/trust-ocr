@@ -1,6 +1,37 @@
 version: "3.9"
 
 services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trustocr-api
+    restart: unless-stopped
+    # --reload en dev; sin publicar puerto al host: solo se consume vía Traefik (patrón SaaS externo)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+      - trustocr_paddleocr_models:/root/.paddleocr
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+psycopg2://trustocr:trustocr@postgres:5432/trustocr
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.ocr.rule=Host(`ocr.localhost`)"
+      - "traefik.http.routers.ocr.entrypoints=web"
+      - "traefik.http.services.ocr.loadbalancer.server.port=8000"
+
   postgres:
     image: postgres:16-alpine
     container_name: trustocr-postgres
@@ -40,6 +71,7 @@ services:
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     volumes:
       - ./backend:/app
+      - trustocr_paddleocr_models:/root/.paddleocr
     env_file:
       - ./backend/.env
     environment:
@@ -71,3 +103,9 @@ services:
 
 volumes:
   trustocr_pgdata:
+  trustocr_paddleocr_models:
+
+networks:
+  default:
+  traefik-public:
+    external: true

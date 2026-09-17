@@ -13,6 +13,7 @@ import { ProfilePage } from "./pages/account/ProfilePage";
 import { ApiKeysPage } from "./pages/account/ApiKeysPage";
 import { TemplatesListPage } from "./pages/templates/TemplatesListPage";
 import { TemplateCreatePage } from "./pages/templates/TemplateCreatePage";
+import { TemplateEditPage } from "./pages/templates/TemplateEditPage";
 import { BatchUploadPage } from "./pages/batches/BatchUploadPage";
 import { BatchListPage } from "./pages/batches/BatchListPage";
 import { BatchDetailPage } from "./pages/batches/BatchDetailPage";
@@ -23,6 +24,7 @@ import { ArcoRectificationPage } from "./pages/arco/ArcoRectificationPage";
 import { ArcoCancellationPage } from "./pages/arco/ArcoCancellationPage";
 import { ArcoOppositionPage } from "./pages/arco/ArcoOppositionPage";
 import { ArcoTrackingPage } from "./pages/arco/ArcoTrackingPage";
+import { AdminTemplateDraftsPage } from "./pages/admin/AdminTemplateDraftsPage";
 
 function App() {
   return (
@@ -42,9 +44,11 @@ function App() {
         <Route path="/account/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
         <Route path="/templates" element={<ProtectedRoute><TemplatesListPage /></ProtectedRoute>} />
         <Route path="/templates/new" element={<ProtectedRoute><TemplateCreatePage /></ProtectedRoute>} />
+        <Route path="/templates/:templateId/edit" element={<ProtectedRoute><TemplateEditPage /></ProtectedRoute>} />
         <Route path="/batches" element={<ProtectedRoute><BatchListPage /></ProtectedRoute>} />
         <Route path="/batches/upload" element={<ProtectedRoute><BatchUploadPage /></ProtectedRoute>} />
         <Route path="/batches/:batchId" element={<ProtectedRoute><BatchDetailPage /></ProtectedRoute>} />
+        <Route path="/admin/templates/drafts" element={<ProtectedRoute requireAdmin><AdminTemplateDraftsPage /></ProtectedRoute>} />
 
         {/* Portal ARCO: público, sin autenticación de sesión (HU 3.2) */}
         <Route path="/arco/identificacion" element={<ArcoIdentityPage />} />

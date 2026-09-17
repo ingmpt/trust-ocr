@@ -34,6 +34,19 @@ def purge_expired_documents() -> int:
         db.close()
 
 
+@celery_app.task(name="app.workers.tasks.create_draft_template")
+def create_draft_template_task(user_id: str, fields_json: str) -> dict:
+    """Sugiere una plantilla borrador en segundo plano a partir de un documento sin
+    coincidencia (HU 4.2), sin bloquear la respuesta al usuario que subió el documento."""
+    db = SessionLocal()
+    try:
+        fields = json.loads(fields_json)
+        template = TemplateService(db).create_draft_from_fields(uuid.UUID(user_id), fields)
+        return {"created": template is not None, "template_id": str(template.id) if template else None}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.workers.tasks.process_batch")
 def process_batch_task(batch_id: str) -> dict:
     db = SessionLocal()

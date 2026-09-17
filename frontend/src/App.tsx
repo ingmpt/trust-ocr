@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { VerifyEmailPage } from "./pages/auth/VerifyEmailPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { UploadPage } from "./pages/documents/UploadPage";
 import { ResultPage } from "./pages/documents/ResultPage";
@@ -33,6 +34,7 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/documents/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />

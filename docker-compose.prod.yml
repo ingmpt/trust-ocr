@@ -146,6 +146,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://ocr.trustedtechnologyperu.com/api/v1}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
     container_name: trustocr_frontend_prod
     restart: unless-stopped
     security_opt:

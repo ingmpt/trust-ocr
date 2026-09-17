@@ -17,8 +17,16 @@ class UserRepository:
     def get_by_email(self, email: str) -> User | None:
         return self.db.scalar(select(User).where(User.email == email))
 
-    def create(self, email: str, password_hash: str) -> User:
-        user = User(email=email, password_hash=password_hash)
+    def get_by_verification_token(self, token: str) -> User | None:
+        return self.db.scalar(select(User).where(User.verification_token == token))
+
+    def create(self, email: str, password_hash: str, verification_token: str, verification_token_expires_at) -> User:
+        user = User(
+            email=email,
+            password_hash=password_hash,
+            verification_token=verification_token,
+            verification_token_expires_at=verification_token_expires_at,
+        )
         self.db.add(user)
         self.db.flush()
         return user

@@ -8,11 +8,21 @@ from pydantic import BaseModel, EmailStr, Field
 class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    captcha_token: str
 
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class RegisterResponse(BaseModel):
+    message: str
+    email: EmailStr
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
 
 
 class UserRead(BaseModel):

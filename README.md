@@ -29,8 +29,17 @@ Ver [`Documento Técnico de Arquitectura.md`](./Documento%20T%C3%A9cnico%20de%20
 - **Corrección LLM**: interfaz abstracta con adaptador Gemini (real, opcional) y adaptador `mock` (por defecto en local, sin API key).
 - **Almacenamiento**: cliente S3-compatible (boto3) contra Cloudflare R2; cae a almacenamiento en memoria si no hay credenciales configuradas (sólo desarrollo local).
 - **Generación de PDF (reporte ARCO)**: WeasyPrint (real, opcional) con generador de PDF mínimo de reemplazo si no está instalado (evita dependencias nativas de GTK en Windows).
-- **Autenticación**: JWT (sesión web) y claves API con hash SHA-256 (integraciones).
+- **Autenticación**: JWT (sesión web) y claves API con hash SHA-256 (integraciones). Registro protegido con CAPTCHA (Cloudflare Turnstile) y verificación de correo obligatoria antes de poder iniciar sesión (ver detalle abajo).
 - **Registro de auditoría**: tabla append-only en PostgreSQL, con punto de extensión para firma externa (blockchain/sello de tiempo) — proveedor pendiente de selección según el documento técnico.
+
+### Registro de cuentas: CAPTCHA + verificación de correo (post-MVP, agregado en producción)
+
+Para mitigar registro automatizado de cuentas por bots, se agregó al flujo de `POST /auth/register`:
+
+- **CAPTCHA (Cloudflare Turnstile)**: el frontend renderiza el widget (`VITE_TURNSTILE_SITE_KEY`, público) y envía el token como `captcha_token`; el backend lo valida contra la API de Cloudflare usando `TURNSTILE_SECRET_KEY` (secreto de negocio, vía Infisical en prod). Si `TURNSTILE_SECRET_KEY` está vacío (desarrollo local), la verificación se omite — mismo patrón que los demás adaptadores opcionales (OCR/LLM/storage).
+- **Verificación de correo obligatoria**: el registro ya no inicia sesión automáticamente. Se crea la cuenta con `email_verified=false`, se genera un token de verificación (válido 24h) y se envía un enlace (`{FRONTEND_ORIGIN}/verify-email?token=...`) por correo (Zoho SMTP). `POST /auth/login` rechaza con 403 si el correo no está verificado. Si `ZOHO_SMTP_USER`/`ZOHO_SMTP_PASSWORD` no están configurados, el enlace se registra en el log de la API (`docker compose logs api`) en vez de enviarse, para poder seguir probando sin el proveedor de correo activo.
+
+Variables nuevas: `TURNSTILE_SECRET_KEY` (backend, secreto en Infisical) y `VITE_TURNSTILE_SITE_KEY` (frontend, público, build-time — ver `docker-compose.prod.yml` / `frontend/Dockerfile`).
 
 ### Nota sobre dependencias pesadas/opcionales
 

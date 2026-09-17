@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     audit_signing_provider: str = "none"
     audit_signing_api_key: str = ""
 
+    # CAPTCHA (Cloudflare Turnstile) — si está vacío, se omite la verificación (desarrollo local)
+    turnstile_secret_key: str = ""
+
     # Pagos / facturación (preparado, no integrado en MVP)
     culqi_public_key: str = ""
     culqi_secret_key: str = ""

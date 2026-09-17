@@ -1,9 +1,13 @@
 import { apiClient } from "./client";
 import type { ApiKeyCreated, ApiKeyRead, UserRead } from "./types";
 
-export async function register(email: string, password: string): Promise<string> {
-  const { data } = await apiClient.post("/auth/register", { email, password });
-  return data.access_token as string;
+export async function register(email: string, password: string, captchaToken: string): Promise<{ message: string; email: string }> {
+  const { data } = await apiClient.post("/auth/register", { email, password, captcha_token: captchaToken });
+  return data;
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  await apiClient.post("/auth/verify-email", { token });
 }
 
 export async function login(email: string, password: string): Promise<string> {

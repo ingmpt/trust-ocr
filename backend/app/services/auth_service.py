@@ -1,10 +1,12 @@
 """Servicio de autenticación: registro, login y gestión de claves API (HU 2.1, 1.4, 4.1)."""
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     generate_api_key,
@@ -17,6 +19,9 @@ from app.models.subscription import Subscription
 from app.models.user import ApiKey, User
 from app.repositories.subscription_repository import PlanRepository, SubscriptionRepository
 from app.repositories.user_repository import ApiKeyRepository, UserRepository
+from app.services.email_service import send_verification_email
+
+VERIFICATION_TOKEN_TTL_HOURS = 24
 
 
 class AuthService:
@@ -27,16 +32,37 @@ class AuthService:
         self.plans = PlanRepository(db)
         self.subscriptions = SubscriptionRepository(db)
 
-    def register(self, email: str, password: str) -> tuple[User, str]:
+    def register(self, email: str, password: str) -> User:
         if self.users.get_by_email(email):
             raise HTTPException(status.HTTP_409_CONFLICT, "El correo electrónico ya está registrado.")
 
-        user = self.users.create(email=email, password_hash=hash_password(password))
+        verification_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=VERIFICATION_TOKEN_TTL_HOURS)
+        user = self.users.create(
+            email=email,
+            password_hash=hash_password(password),
+            verification_token=verification_token,
+            verification_token_expires_at=expires_at,
+        )
         self._assign_freemium_plan(user.id)
         self.db.commit()
 
-        token = create_access_token(str(user.id))
-        return user, token
+        verification_link = f"{settings.frontend_origin}/verify-email?token={verification_token}"
+        send_verification_email(user.email, verification_link)
+        return user
+
+    def verify_email(self, token: str) -> None:
+        user = self.users.get_by_verification_token(token)
+        if user is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Enlace de verificación inválido.")
+        if user.verification_token_expires_at is not None and user.verification_token_expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "El enlace de verificación expiró. Solicita uno nuevo.")
+
+        user.email_verified = True
+        user.verification_token = None
+        user.verification_token_expires_at = None
+        self.users.save(user)
+        self.db.commit()
 
     def _assign_freemium_plan(self, user_id: uuid.UUID) -> Subscription:
         freemium_plan = self.plans.get_by_code(PlanCode.FREEMIUM.value)
@@ -60,6 +86,8 @@ class AuthService:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales inválidas.")
         if not user.is_active:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Cuenta desactivada.")
+        if not user.email_verified:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Debes verificar tu correo electrónico antes de iniciar sesión.")
 
         token = create_access_token(str(user.id))
         return user, token

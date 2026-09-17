@@ -1,5 +1,5 @@
 """Endpoints de autenticación, perfil y claves API (HU 2.1, 4.1, 1.4)."""
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.schemas.auth import (
@@ -8,20 +8,31 @@ from app.schemas.auth import (
     ApiKeyRead,
     ChangeEmailRequest,
     ChangePasswordRequest,
+    RegisterResponse,
     TokenResponse,
     UserLogin,
     UserRead,
     UserRegister,
+    VerifyEmailRequest,
 )
 from app.services.auth_service import AuthService
+from app.services.turnstile_service import verify_turnstile_token
 
 router = APIRouter(tags=["auth"])
 
 
-@router.post("/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: UserRegister, db: DbSession):
-    _, token = AuthService(db).register(payload.email, payload.password)
-    return TokenResponse(access_token=token)
+@router.post("/auth/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+def register(payload: UserRegister, db: DbSession, request: Request):
+    if not verify_turnstile_token(payload.captcha_token, request.client.host if request.client else None):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Verificación de CAPTCHA inválida.")
+
+    user = AuthService(db).register(payload.email, payload.password)
+    return RegisterResponse(message="Cuenta creada. Revisa tu correo para verificarla antes de iniciar sesión.", email=user.email)
+
+
+@router.post("/auth/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+def verify_email(payload: VerifyEmailRequest, db: DbSession):
+    AuthService(db).verify_email(payload.token)
 
 
 @router.post("/auth/login", response_model=TokenResponse)

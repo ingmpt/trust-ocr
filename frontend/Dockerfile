@@ -7,6 +7,8 @@ RUN npm ci
 COPY . .
 ARG VITE_API_BASE_URL=https://ocr.trustedtechnologyperu.com/api/v1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_TURNSTILE_SITE_KEY=
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime

@@ -3,6 +3,18 @@ import cv2
 import numpy as np
 
 MAX_AUTO_DESKEW_ANGLE_DEGREES = 15.0  # más allá de esto, es probable un ángulo mal estimado, no una foto torcida real
+MAX_IMAGE_DIMENSION_PX = 2200  # fotos de celular sin redimensionar (>4000px) pueden agotar la memoria del contenedor (OOM/SIGKILL)
+
+
+def _cap_resolution(image: np.ndarray) -> np.ndarray:
+    height, width = image.shape[:2]
+    largest_side = max(height, width)
+    if largest_side <= MAX_IMAGE_DIMENSION_PX:
+        return image
+
+    scale = MAX_IMAGE_DIMENSION_PX / largest_side
+    new_size = (int(width * scale), int(height * scale))
+    return cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
 
 
 def preprocess_image(image_bytes: bytes) -> np.ndarray:
@@ -10,6 +22,7 @@ def preprocess_image(image_bytes: bytes) -> np.ndarray:
     image = cv2.imdecode(array, cv2.IMREAD_COLOR)
     if image is None:
         raise ValueError("No se pudo decodificar la imagen del documento.")
+    image = _cap_resolution(image)
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # El ángulo de inclinación se calcula sobre la imagen original (antes de

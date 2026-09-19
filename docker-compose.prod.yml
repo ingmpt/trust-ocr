@@ -32,6 +32,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # VPS compartida de 3.7GiB reales — límites ajustados para no dejar sin RAM a otros stacks del nodo
+    mem_limit: 300m
+    mem_reservation: 128m
     # Sin `ports:` — solo alcanzable dentro de la red interna del compose
     networks:
       - internal
@@ -50,6 +53,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    mem_limit: 100m
+    mem_reservation: 32m
     networks:
       - internal
 
@@ -76,6 +81,10 @@ services:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
       - no-new-privileges:true
+    # Límite de RAM: la VPS es compartida (3.7GiB) con otros stacks; sin este tope, un pico de
+    # PaddleOCR/OpenCV puede dejar sin memoria a todo el nodo (visto en dmesg: uvicorn OOM-killed a ~1.8GB RSS)
+    mem_limit: 700m
+    mem_reservation: 256m
     networks:
       - internal
       - traefik-public
@@ -95,7 +104,7 @@ services:
       dockerfile: Dockerfile
     container_name: trustocr_celery_worker_prod
     restart: unless-stopped
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +122,9 @@ services:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
       - no-new-privileges:true
+    # concurrency=1: cada worker carga su propio modelo PaddleOCR en memoria; con 2 se duplicaba el riesgo de OOM
+    mem_limit: 700m
+    mem_reservation: 256m
     networks:
       - internal
 
@@ -137,6 +149,8 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     security_opt:
       - no-new-privileges:true
+    mem_limit: 128m
+    mem_reservation: 64m
     networks:
       - internal
 
@@ -151,6 +165,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    mem_limit: 64m
+    mem_reservation: 32m
     networks:
       - traefik-public
     labels:

@@ -33,7 +33,7 @@ services:
       timeout: 5s
       retries: 5
     # VPS compartida de 3.7GiB reales — límites ajustados para no dejar sin RAM a otros stacks del nodo
-    mem_limit: 300m
+    mem_limit: 256m
     mem_reservation: 128m
     # Sin `ports:` — solo alcanzable dentro de la red interna del compose
     networks:
@@ -53,7 +53,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    mem_limit: 100m
+    mem_limit: 80m
     mem_reservation: 32m
     networks:
       - internal
@@ -81,10 +81,10 @@ services:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
       - no-new-privileges:true
-    # Límite de RAM: la VPS es compartida (3.7GiB) con otros stacks; sin este tope, un pico de
-    # PaddleOCR/OpenCV puede dejar sin memoria a todo el nodo (visto en dmesg: uvicorn OOM-killed a ~1.8GB RSS)
-    mem_limit: 700m
-    mem_reservation: 256m
+    # Límite de RAM: PaddleOCR por sí solo (modelos de detección/ángulo/reconocimiento) ya usa
+    # varios cientos de MB al cargar; 700m resultó insuficiente en la práctica (OOM real en VPS)
+    mem_limit: 1024m
+    mem_reservation: 400m
     networks:
       - internal
       - traefik-public
@@ -123,8 +123,8 @@ services:
     security_opt:
       - no-new-privileges:true
     # concurrency=1: cada worker carga su propio modelo PaddleOCR en memoria; con 2 se duplicaba el riesgo de OOM
-    mem_limit: 700m
-    mem_reservation: 256m
+    mem_limit: 1024m
+    mem_reservation: 400m
     networks:
       - internal
 
@@ -149,8 +149,9 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     security_opt:
       - no-new-privileges:true
-    mem_limit: 128m
-    mem_reservation: 64m
+    # beat no ejecuta OCR, pero importa los mismos módulos de tareas (cv2, fitz, numpy) al arrancar
+    mem_limit: 300m
+    mem_reservation: 128m
     networks:
       - internal
 

@@ -3,7 +3,9 @@ import cv2
 import numpy as np
 
 MAX_AUTO_DESKEW_ANGLE_DEGREES = 15.0  # más allá de esto, es probable un ángulo mal estimado, no una foto torcida real
-MAX_IMAGE_DIMENSION_PX = 2200  # fotos de celular sin redimensionar (>4000px) pueden agotar la memoria del contenedor (OOM/SIGKILL)
+# 2200px seguía provocando OOM real del contenedor durante la inferencia de PaddleOCR (dmesg:
+# memcg out of memory, anon-rss~1043MB contra mem_limit=1024m); se baja a 1600px.
+MAX_IMAGE_DIMENSION_PX = 1600
 
 
 def _cap_resolution(image: np.ndarray) -> np.ndarray:

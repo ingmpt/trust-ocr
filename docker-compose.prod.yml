@@ -88,8 +88,10 @@ services:
     security_opt:
       - no-new-privileges:true
     # Límite de RAM: PaddleOCR por sí solo (modelos de detección/ángulo/reconocimiento) ya usa
-    # varios cientos de MB al cargar; 700m resultó insuficiente en la práctica (OOM real en VPS)
-    mem_limit: 1024m
+    # varios cientos de MB al cargar; 700m resultó insuficiente en la práctica (OOM real en VPS).
+    # 1024m tampoco alcanzaba durante la inferencia real (dmesg: memcg OOM, anon-rss~1043MB);
+    # se sube a 1280m como margen, combinado con reducir resolución y desactivar angle_cls.
+    mem_limit: 1280m
     mem_reservation: 400m
     networks:
       - internal
@@ -133,7 +135,7 @@ services:
     security_opt:
       - no-new-privileges:true
     # concurrency=1: cada worker carga su propio modelo PaddleOCR en memoria; con 2 se duplicaba el riesgo de OOM
-    mem_limit: 1024m
+    mem_limit: 1280m
     mem_reservation: 400m
     networks:
       - internal

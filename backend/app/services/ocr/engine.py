@@ -28,10 +28,13 @@ class PaddleOCREngine(BaseOCREngine):
     def __init__(self):
         from paddleocr import PaddleOCR  # import diferido: dependencia pesada opcional
 
-        self._ocr = PaddleOCR(use_angle_cls=True, lang="es", show_log=False)
+        # use_angle_cls=False: preprocess_image() ya hace deskew con OpenCV antes del OCR;
+        # el clasificador de ángulo de PaddleOCR es un modelo extra redundante que también
+        # contribuía al OOM del contenedor (memcg out of memory con mem_limit=1024m).
+        self._ocr = PaddleOCR(use_angle_cls=False, lang="es", show_log=False)
 
     def run(self, image: np.ndarray) -> list[OCRLine]:
-        raw_result = self._ocr.ocr(image, cls=True)
+        raw_result = self._ocr.ocr(image, cls=False)
         lines: list[OCRLine] = []
         for block in raw_result or []:
             if block is None:

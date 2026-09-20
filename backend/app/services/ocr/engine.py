@@ -25,28 +25,22 @@ class BaseOCREngine:
 
 
 class PaddleOCREngine(BaseOCREngine):
-    def __init__(self):
-        from paddleocr import PaddleOCR  # import diferido: dependencia pesada opcional
+    """Motor real via ONNX Runtime (rapidocr-onnxruntime, mismos modelos PP-OCRv3 que
+    PaddleOCR). Se migro desde PaddlePaddle nativo porque su allocador escalaba el uso
+    de RAM proporcional al mem_limit del contenedor, causando OOM inevitable en la VPS.
+    """
 
-        # use_angle_cls=False: preprocess_image() ya hace deskew con OpenCV antes del OCR;
-        # el clasificador de ángulo de PaddleOCR es un modelo extra redundante que también
-        # contribuía al OOM del contenedor (memcg out of memory con mem_limit=1024m).
-        self._ocr = PaddleOCR(use_angle_cls=False, lang="es", show_log=False)
+    def __init__(self):
+        from rapidocr_onnxruntime import RapidOCR  # import diferido: dependencia pesada opcional
+
+        self._ocr = RapidOCR()
 
     def run(self, image: np.ndarray) -> list[OCRLine]:
-        raw_result = self._ocr.ocr(image, cls=False)
+        result, _ = self._ocr(image)
         lines: list[OCRLine] = []
-        for block in raw_result or []:
-            if block is None:
-                continue
-            for item in block:
-                if item is None or len(item) < 2:
-                    continue
-                _box, text_score = item
-                if text_score is None or len(text_score) < 2:
-                    continue
-                text, score = text_score
-                lines.append(OCRLine(text=text, confidence=round(score * 100, 2)))
+        for box_text_score in result or []:
+            _box, text, score = box_text_score
+            lines.append(OCRLine(text=text, confidence=round(float(score) * 100, 2)))
         return lines
 
 
@@ -67,6 +61,6 @@ def get_ocr_engine() -> BaseOCREngine:
         try:
             return PaddleOCREngine()
         except ImportError:
-            logger.warning("paddleocr/paddlepaddle no instalados; usando MockOCREngine.")
+            logger.warning("rapidocr-onnxruntime no instalado; usando MockOCREngine.")
             return MockOCREngine()
     return MockOCREngine()

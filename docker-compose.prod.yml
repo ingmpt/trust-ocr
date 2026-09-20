@@ -87,6 +87,11 @@ services:
       # eso infla el RSS proporcional a lo que el cgroup permite, no a lo que hace falta
       # (visto: OOM siempre justo debajo del mem_limit, sin importar cual sea el limite).
       MALLOC_ARENA_MAX: "2"
+      # PaddlePaddle preasigna un pool de memoria CPU como fraccion de lo "disponible"
+      # detectado (no del tamano real del modelo/imagen) -- por eso el RSS escalaba con
+      # cada mem_limit que probamos (1024m->1043MB, 1280m->1305MB, 1536m->1566MB). Se limita
+      # explicitamente a una fraccion pequena.
+      FLAGS_fraction_of_cpu_memory_to_use: "0.15"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
@@ -135,6 +140,7 @@ services:
       MKL_NUM_THREADS: "1"
       OPENCV_OPENCL_RUNTIME: "disabled"
       MALLOC_ARENA_MAX: "2"
+      FLAGS_fraction_of_cpu_memory_to_use: "0.15"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:

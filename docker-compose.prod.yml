@@ -77,31 +77,14 @@ services:
       DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       OCR_ENGINE: paddleocr
-      # OpenCV/scipy/PaddlePaddle cada uno trae su propio backend de threads/BLAS; sin esto
-      # compiten en el mismo proceso y corrompen heap (crash "free(): invalid pointer").
-      OMP_NUM_THREADS: "1"
-      OPENBLAS_NUM_THREADS: "1"
-      MKL_NUM_THREADS: "1"
-      OPENCV_OPENCL_RUNTIME: "disabled"
-      # glibc crea un arena de malloc por hilo; con librerias nativas (OpenBLAS/MKL/Paddle)
-      # eso infla el RSS proporcional a lo que el cgroup permite, no a lo que hace falta
-      # (visto: OOM siempre justo debajo del mem_limit, sin importar cual sea el limite).
-      MALLOC_ARENA_MAX: "2"
-      # PaddlePaddle preasigna un pool de memoria CPU como fraccion de lo "disponible"
-      # detectado (no del tamano real del modelo/imagen) -- por eso el RSS escalaba con
-      # cada mem_limit que probamos (1024m->1043MB, 1280m->1305MB, 1536m->1566MB). Se limita
-      # explicitamente a una fraccion pequena.
-      FLAGS_fraction_of_cpu_memory_to_use: "0.15"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
       - no-new-privileges:true
-    # Límite de RAM: PaddleOCR por sí solo (modelos de detección/ángulo/reconocimiento) ya usa
-    # varios cientos de MB al cargar; 700m resultó insuficiente en la práctica (OOM real en VPS).
-    # 1024m y 1280m también murieron justo en el límite (dmesg: memcg OOM, anon-rss≈límite) --
-    # confirmado como fuga real de PaddleInference (compila un grafo nuevo por cada forma de
-    # imagen distinta y nunca lo libera): a 2048m también murió (~2089MB). Se corrige en
-    # preprocessing.py forzando tamaño fijo de imagen; se vuelve a un límite seguro.
+    # Límite de RAM: motor OCR migrado a ONNX Runtime (rapidocr-onnxruntime); PaddlePaddle
+    # nativo escalaba su uso de RAM proporcional al mem_limit del contenedor sin importar
+    # el tamaño del documento (OOM reproducible de 1024m hasta 2048m). ONNX Runtime no
+    # tiene ese comportamiento; 1024m es holgado para su huella real (~150-300MB).
     mem_limit: 1024m
     mem_reservation: 400m
     networks:
@@ -137,17 +120,11 @@ services:
       DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       OCR_ENGINE: paddleocr
-      OMP_NUM_THREADS: "1"
-      OPENBLAS_NUM_THREADS: "1"
-      MKL_NUM_THREADS: "1"
-      OPENCV_OPENCL_RUNTIME: "disabled"
-      MALLOC_ARENA_MAX: "2"
-      FLAGS_fraction_of_cpu_memory_to_use: "0.15"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
       - no-new-privileges:true
-    # concurrency=1: cada worker carga su propio modelo PaddleOCR en memoria; con 2 se duplicaba el riesgo de OOM
+    # concurrency=1: cada worker carga su propio modelo OCR en memoria; con 2 se duplicaba el riesgo de OOM
     mem_limit: 1024m
     mem_reservation: 400m
     networks:

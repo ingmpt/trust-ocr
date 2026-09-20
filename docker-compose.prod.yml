@@ -83,6 +83,10 @@ services:
       OPENBLAS_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
       OPENCV_OPENCL_RUNTIME: "disabled"
+      # glibc crea un arena de malloc por hilo; con librerias nativas (OpenBLAS/MKL/Paddle)
+      # eso infla el RSS proporcional a lo que el cgroup permite, no a lo que hace falta
+      # (visto: OOM siempre justo debajo del mem_limit, sin importar cual sea el limite).
+      MALLOC_ARENA_MAX: "2"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
@@ -130,6 +134,7 @@ services:
       OPENBLAS_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
       OPENCV_OPENCL_RUNTIME: "disabled"
+      MALLOC_ARENA_MAX: "2"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:

@@ -77,6 +77,12 @@ services:
       DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       OCR_ENGINE: paddleocr
+      # OpenCV/scipy/PaddlePaddle cada uno trae su propio backend de threads/BLAS; sin esto
+      # compiten en el mismo proceso y corrompen heap (crash "free(): invalid pointer").
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENCV_OPENCL_RUNTIME: "disabled"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:
@@ -118,6 +124,10 @@ services:
       DATABASE_URL: postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       OCR_ENGINE: paddleocr
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENCV_OPENCL_RUNTIME: "disabled"
     volumes:
       - trustocr_paddleocr_models_prod:/root/.paddleocr
     security_opt:

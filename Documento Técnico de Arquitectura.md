@@ -9,7 +9,7 @@ Trust OCR+ se construye como una plataforma backend-céntrica orientada a API, c
 
 **Preprocesamiento de imagen**: OpenCV (de-skewing, de-noising, ajuste de contraste), tal como se define explícitamente en la propuesta de valor y HU 1.2.
 
-**Motor OCR**: **PaddleOCR (decisión final)**, confirmado por el sponsor tras evaluación de precisión/recall sobre corpus de documentos peruanos. Justificado además por su soporte de detección de layout/tablas relevante para facturas y documentos con estructura tabular, y por el requisito explícito de evitar licenciamiento de terceros (HU 1.2).
+**Motor OCR**: **PP-OCRv3 (modelos de PaddleOCR, decisión final del sponsor), ejecutados vía ONNX Runtime** (`rapidocr-onnxruntime`) en vez del runtime nativo de PaddlePaddle. Migración realizada en producción (sept. 2026): PaddlePaddle nativo mostró un allocador de memoria que escala su consumo de RAM proporcional al `mem_limit` del contenedor en vez del tamaño real del documento, causando OOM irrecuperable en la VPS de 2GB (reproducible entre 1024m y 2048m de límite). ONNX Runtime usa los mismos modelos y mantiene la decisión del sponsor sobre el motor de detección/reconocimiento, solo cambia el runtime de inferencia subyacente. Justificado además por su soporte de detección de layout/tablas relevante para facturas y documentos con estructura tabular, y por el requisito explícito de evitar licenciamiento de terceros (HU 1.2).
 
 **Infraestructura de cómputo**: **CPU sobre VPS de Hetzner (decisión final)**, confirmado por el sponsor. Esta decisión resuelve la inconsistencia previamente señalada entre el objetivo de costos bajos (uso exclusivo de CPU) y la meta de latencia <1.5s en modo Express; el compromiso de SLA de latencia debe calibrarse en función de pruebas de carga reales sobre esta infraestructura antes de comunicarse comercialmente (ver "Riesgos técnicos").
 
@@ -42,7 +42,7 @@ Trust OCR+ se construye como una plataforma backend-céntrica orientada a API, c
 - **Servicio de Ingesta de Documentos**: recepción de archivos individuales o ZIP vía web/API, validación de formato, control de progreso de carga. (HU 1.1)
 - **Orquestador de Procesamiento Asíncrono**: encola documentos, gestiona lotes, calcula estimación de tiempo de procesamiento. (HU 1.1, 1.2)
 - **Pipeline de Preprocesamiento (OpenCV)**: normaliza imágenes antes del OCR. (HU 1.2)
-- **Motor OCR (PaddleOCR)**: extracción de texto crudo desde documentos preprocesados. (HU 1.2)
+- **Motor OCR (PP-OCRv3 vía ONNX Runtime)**: extracción de texto crudo desde documentos preprocesados. (HU 1.2)
 - **Motor de Reglas de Extracción Estructurada**: parsing determinístico para documentos SUNAT de formato conocido, incluida validación de RUC. (HU 1.2)
 - **Servicio de Corrección/Estructuración LLM**: limpieza y estructuración de campos vía Gemini, con capa de abstracción para intercambio futuro de proveedor. (HU 1.2)
 - **Servicio de Ensamblado de Resultados y Confianza**: genera el JSON final con score de confianza por campo. (HU 1.3)

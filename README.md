@@ -25,7 +25,7 @@ Ver [`Documento Técnico de Arquitectura.md`](./Documento%20T%C3%A9cnico%20de%20
 - **Base de datos**: PostgreSQL + SQLAlchemy 2.0 + Alembic (migraciones).
 - **Cache/sesión Express**: Redis.
 - **Preprocesamiento de imagen**: OpenCV.
-- **Motor OCR**: interfaz abstracta con adaptador PaddleOCR (real, opcional) y adaptador `mock` (por defecto en local, sin dependencias pesadas de ML).
+- **Motor OCR**: interfaz abstracta con adaptador ONNX Runtime (`rapidocr-onnxruntime`, modelos PP-OCRv3 de PaddleOCR — real, opcional) y adaptador `mock` (por defecto en local, sin dependencias pesadas de ML). Se migró desde el runtime nativo de PaddlePaddle en producción por un problema de memoria (ver "Decisiones técnicas y supuestos de esta entrega").
 - **Corrección LLM**: interfaz abstracta con adaptador Gemini (real, opcional) y adaptador `mock` (por defecto en local, sin API key).
 - **Almacenamiento**: cliente S3-compatible (boto3) contra Cloudflare R2; cae a almacenamiento en memoria si no hay credenciales configuradas (sólo desarrollo local).
 - **Generación de PDF (reporte ARCO)**: WeasyPrint (real, opcional) con generador de PDF mínimo de reemplazo si no está instalado (evita dependencias nativas de GTK en Windows).
@@ -45,7 +45,7 @@ Variables nuevas: `TURNSTILE_SECRET_KEY` (backend, secreto en Infisical) y `VITE
 
 Para evitar fallos de instalación en el entorno de desarrollo local, `requirements.txt` **no** incluye PaddleOCR/PaddlePaddle ni WeasyPrint por defecto:
 
-- `requirements-ocr.txt`: instalar sólo para usar el motor OCR real (`OCR_ENGINE=paddleocr` en `.env`).
+- `requirements-ocr.txt`: instalar sólo para usar el motor OCR real (`OCR_ENGINE=paddleocr` en `.env`; el nombre del flag se mantiene por compatibilidad, pero internamente ejecuta ONNX Runtime, no PaddlePaddle nativo).
 - `requirements-pdf.txt`: instalar sólo para generar los reportes ARCO con WeasyPrint (requiere librerías nativas de GTK3 en Windows).
 
 Mientras no se instalen, la aplicación funciona igual usando los adaptadores de reemplazo (mock OCR, corrección LLM sin cambios, PDF de texto plano mínimo).
@@ -182,7 +182,7 @@ Verificado manualmente contra la API y el frontend en ejecución:
 - ✅ `POST /api/v1/payment-methods` → registra método de pago (sin tokenización real, Culqi no integrado en MVP).
 - ✅ Frontend: `npm run build` y `tsc -b --noEmit` sin errores; CORS verificado entre `localhost:5174` (frontend) y `localhost:8000` (backend); páginas cargan y consumen la API (Login, Registro, Dashboard, Carga de Documentos, Planes, ARCO).
 
-Pendiente de probar con credenciales reales (fuera del alcance de este smoke test): Gemini, Cloudflare R2, Zoho SMTP, PaddleOCR, WeasyPrint.
+Pendiente de probar con credenciales reales (fuera del alcance de este smoke test): Gemini, Cloudflare R2, Zoho SMTP, WeasyPrint. **OCR (ONNX Runtime/PP-OCRv3) ya validado en producción** con documentos reales (recibos SUNAT/SEDAPAL).
 
 ## Decisiones técnicas y supuestos de esta entrega
 
@@ -197,5 +197,5 @@ Pendiente de probar con credenciales reales (fuera del alcance de este smoke tes
 - Conteo real de páginas en PDF multi-hoja (actualmente 1 archivo = 1 página).
 - Procesamiento por lote (ZIP) es síncrono en el request; migrar a cola Celery/Redis para lotes grandes con notificación asíncrona real.
 - La purga de documentos vencidos ya tiene tarea Celery Beat definida (`app/workers/tasks.py`, diaria a las 3am), pero requiere levantar `celery -A app.workers.celery_app worker` y `celery -A app.workers.celery_app beat` en un proceso separado (no está incluido en `docker-compose.yml` de este MVP).
-- Integración real de Culqi, Nubefact, Gemini, Cloudflare R2, Zoho SMTP, PaddleOCR y WeasyPrint pendiente de credenciales/decisión de proveedor.
+- Integración real de Culqi, Nubefact, Zoho SMTP y WeasyPrint pendiente de credenciales/decisión de proveedor. Gemini y OCR (ONNX Runtime/PP-OCRv3) ya integrados y validados en producción. Cloudflare R2 integrado pero con error de permisos pendiente de corregir (`AccessDenied` en modo Almacenado — credenciales/policy del bucket en Infisical).
 - Node.js no estaba instalado en el entorno; se instaló vía `winget install OpenJS.NodeJS.LTS` para poder construir el frontend.

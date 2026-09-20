@@ -6,6 +6,18 @@ MAX_AUTO_DESKEW_ANGLE_DEGREES = 15.0  # más allá de esto, es probable un ángu
 # 2200px seguía provocando OOM real del contenedor durante la inferencia de PaddleOCR (dmesg:
 # memcg out of memory, anon-rss~1043MB contra mem_limit=1024m); se baja a 1600px.
 MAX_IMAGE_DIMENSION_PX = 1600
+# PaddleInference compila y cachea un grafo de cómputo nuevo por cada FORMA de imagen
+# distinta que recibe, sin liberar los anteriores -- esto causaba OOM sin límite real
+# (probado hasta 2048m: siempre moría justo por encima del límite). Se fuerza un canvas
+# cuadrado de tamaño fijo para que todas las imágenes compartan la misma forma de entrada.
+FIXED_CANVAS_PX = 1600
+
+
+def _pad_to_fixed_canvas(image: np.ndarray) -> np.ndarray:
+    height, width = image.shape[:2]
+    canvas = np.full((FIXED_CANVAS_PX, FIXED_CANVAS_PX), 255, dtype=image.dtype)
+    canvas[:height, :width] = image[:FIXED_CANVAS_PX, :FIXED_CANVAS_PX]
+    return canvas
 
 
 def _cap_resolution(image: np.ndarray) -> np.ndarray:
@@ -32,7 +44,7 @@ def preprocess_image(image_bytes: bytes) -> np.ndarray:
     deskewed = _deskew(gray)
     denoised = cv2.fastNlMeansDenoising(deskewed, h=7)
     contrasted = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(denoised)
-    return contrasted
+    return _pad_to_fixed_canvas(contrasted)
 
 
 def _deskew(image: np.ndarray) -> np.ndarray:
